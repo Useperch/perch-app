@@ -43,7 +43,7 @@ case .act(let task, let spokenConfirmation):
           "act lane extracts the task description")
     check(spokenConfirmation == "on it, booking that now",
           "act lane extracts the spoken confirmation (tag stripped, trimmed)")
-case .answer:
+default:
     check(false, "booking reply must route to the act lane")
 }
 
@@ -52,9 +52,34 @@ switch IntentGate.classify(claudeReply: "doing it [BACKGROUND_TASK:sign up for t
 case .act(let task, let spokenConfirmation):
     check(task == "sign up for the newsletter", "act lane matches with trailing whitespace after tag")
     check(spokenConfirmation == "doing it", "spoken confirmation trimmed with trailing whitespace after tag")
-case .answer:
+default:
     check(false, "reply with trailing whitespace after the tag must route to the act lane")
 }
+
+// ── Clarify lane: a trailing [CLARIFY:<question>] asks before acting ──
+
+let clarifyReply = "want me to type it, or show you where? [CLARIFY:should i type it in, or just point at the cell?]"
+switch IntentGate.classify(claudeReply: clarifyReply) {
+case .clarify(let question):
+    check(question == "should i type it in, or just point at the cell?",
+          "clarify lane extracts the question")
+default:
+    check(false, "clarify reply must route to the clarify lane")
+}
+
+// Trailing whitespace after the tag must still match (anchored \s*$).
+switch IntentGate.classify(claudeReply: "quick q [CLARIFY:which file did you mean?]\n  ") {
+case .clarify(let question):
+    check(question == "which file did you mean?", "clarify lane matches with trailing whitespace after tag")
+default:
+    check(false, "clarify reply with trailing whitespace must route to the clarify lane")
+}
+
+check(IntentGate.classify(claudeReply: "hmm [CLARIFY:]") == .answer,
+      "empty [CLARIFY:] is not a valid clarify — stays an answer")
+
+check(IntentGate.classify(claudeReply: "hmm [CLARIFY:   ]") == .answer,
+      "whitespace-only [CLARIFY:] is not a valid clarify — stays an answer")
 
 if failureCount == 0 {
     print("\nALL CHECKS PASSED")
