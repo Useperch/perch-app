@@ -56,23 +56,23 @@ default:
     check(false, "reply with trailing whitespace after the tag must route to the act lane")
 }
 
-// ── Dashboard-widget lane: a trailing [DASHBOARD_WIDGET:<spec>] adds in-app ──
+// ── Dashboard-widget lane: a trailing [DASHBOARD:<spec>] adds in-app ──
 
-switch IntentGate.classify(claudeReply: "on it, adding that! [DASHBOARD_WIDGET:the user's top GitHub repositories]") {
+switch IntentGate.classify(claudeReply: "on it, adding that! [DASHBOARD:the user's top GitHub repositories]") {
 case .dashboardWidget(let spec, let spokenConfirmation):
     check(spec == "the user's top GitHub repositories",
           "dashboard-widget lane extracts the widget spec")
     check(spokenConfirmation == "on it, adding that!",
           "dashboard-widget lane extracts the spoken confirmation (tag stripped, trimmed)")
 default:
-    check(false, "a [DASHBOARD_WIDGET:…] reply must route to the dashboard-widget lane")
+    check(false, "a [DASHBOARD:…] reply must route to the dashboard-widget lane")
 }
 
-check(IntentGate.classify(claudeReply: "hmm [DASHBOARD_WIDGET:]") == .answer,
-      "empty [DASHBOARD_WIDGET:] is not a valid widget request — stays an answer")
+check(IntentGate.classify(claudeReply: "hmm [DASHBOARD:]") == .answer,
+      "empty [DASHBOARD:] is not a valid widget request — stays an answer")
 
 // A dashboard widget must NOT be mistaken for a generic browser act.
-if case .act = IntentGate.classify(claudeReply: "adding it [DASHBOARD_WIDGET:my unread email]") {
+if case .act = IntentGate.classify(claudeReply: "adding it [DASHBOARD:my unread email]") {
     check(false, "a dashboard widget must not route to the browser-subagent act lane")
 } else {
     check(true, "a dashboard widget does not route to the act lane")
