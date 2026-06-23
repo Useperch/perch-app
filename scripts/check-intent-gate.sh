@@ -14,7 +14,7 @@ cd "$REPO_DIR"
 BUILD_OUT="$(mktemp -t intent-gate-check)"
 
 swiftc -swift-version 5 -target arm64-apple-macos14.2 \
-  leanring-buddy/IntentGate.swift \
+  leanring-buddy/Input/IntentGate.swift \
   scripts/intent-gate-check/main.swift \
   -o "$BUILD_OUT"
 
