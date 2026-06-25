@@ -11,18 +11,21 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
+CB="boring.notch/boringNotch/ClickyBackend"
 BUILD_OUT="$(mktemp -t playbook-cache-check)"
 
 swiftc -swift-version 5 -target arm64-apple-macos14.2 \
-  leanring-buddy/WorkflowDemonstrationModels.swift \
-  leanring-buddy/WorkflowPlaybookStore.swift \
-  leanring-buddy/WorkflowPlaybookSynthesizer.swift \
-  leanring-buddy/WorkflowVideoKeyframeExtractor.swift \
-  leanring-buddy/CompanionScreenCaptureUtility.swift \
-  leanring-buddy/AccessibilityTreeSnapshotter.swift \
-  leanring-buddy/ClaudeAPI.swift \
-  leanring-buddy/AppBundleConfiguration.swift \
-  leanring-buddy/WorkflowDebugLog.swift \
+  boring.notch/boringNotch/Dashboard/ClickySupportPaths.swift \
+  "$CB/Workflows/Capture/WorkflowDemonstrationModels.swift" \
+  "$CB/Workflows/Playbook/WorkflowPlaybookStore.swift" \
+  "$CB/Workflows/Playbook/WorkflowPlaybookSynthesizer.swift" \
+  "$CB/Workflows/Capture/WorkflowVideoKeyframeExtractor.swift" \
+  "$CB/Capture/CompanionScreenCaptureUtility.swift" \
+  "$CB/Capture/AccessibilityTreeSnapshotter.swift" \
+  "$CB/Workflows/Agent/WorkflowAgentModels.swift" \
+  "$CB/LLM/ClaudeAPI.swift" \
+  "$CB/AppBundleConfiguration.swift" \
+  "$CB/Telemetry/WorkflowDebugLog.swift" \
   scripts/playbook-cache-check/main.swift \
   -o "$BUILD_OUT"
 
