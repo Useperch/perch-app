@@ -11,15 +11,17 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
+CB="boring.notch/boringNotch/ClickyBackend"
 BUILD_OUT="$(mktemp -t workflow-share-check)"
 
 swiftc -swift-version 5 -target arm64-apple-macos14.2 \
-  leanring-buddy/WorkflowDemonstrationModels.swift \
-  leanring-buddy/WorkflowScheduleModels.swift \
-  leanring-buddy/WorkflowScheduleStore.swift \
-  leanring-buddy/WorkflowShareModels.swift \
-  leanring-buddy/WorkflowPlaybookStore.swift \
-  leanring-buddy/WorkflowDebugLog.swift \
+  boring.notch/boringNotch/Dashboard/ClickySupportPaths.swift \
+  "$CB/Workflows/Capture/WorkflowDemonstrationModels.swift" \
+  "$CB/Workflows/Schedule/WorkflowScheduleModels.swift" \
+  "$CB/Workflows/Schedule/WorkflowScheduleStore.swift" \
+  "$CB/Workflows/Share/WorkflowShareModels.swift" \
+  "$CB/Workflows/Playbook/WorkflowPlaybookStore.swift" \
+  "$CB/Telemetry/WorkflowDebugLog.swift" \
   scripts/workflow-share-check/main.swift \
   -o "$BUILD_OUT"
 
