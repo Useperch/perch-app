@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>SUEnableDownloaderService</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://TheBoredTeam.github.io/boring.notch/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>B1Y47t8C/v8ImurYA+9arEsuCrpxwJSviekiflMElbI=</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict/>
+	</array>
+
+	<!-- ===== Perch backend (ported) ===== -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>theboringteam.notch.perch-deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>perch</string>
+			</array>
+		</dict>
+	</array>
+	<key>WorkerBaseURL</key>
+	<string>https://clicky-proxy.kar69-96.workers.dev</string>
+	<key>TranscribeTokenURL</key>
+	<string>https://clicky-proxy.kar69-96.workers.dev/transcribe-token</string>
+	<key>WorkflowShareBaseURL</key>
+	<string>https://clicky-proxy.kar69-96.workers.dev</string>
+	<key>WorkflowShareClientSecret</key>
+	<string>YOUR_WORKFLOW_SHARE_SECRET</string>
+	<key>VoiceTranscriptionProvider</key>
+	<string>assemblyai</string>
+	<key>BrowserSubagentPath</key>
+	<string>REDACTED_PATH</string>
+	<key>BrowserSubagentSocketPath</key>
+	<string>REDACTED_PATH</string>
+	<key>PerchRepoRoot</key>
+	<string>REDACTED_PATH</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used so you can talk to the assistant.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Used to see your screen so the assistant can help with what you're doing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Used to transcribe your voice when you talk to the assistant.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Used to carry out desktop tasks for you after you show a workflow once.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Used to show your upcoming events in the notch and remind you about them.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Used to show your upcoming events in the notch and remind you about them.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Used to show your reminders in the notch and let you check them off.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Used to show your reminders in the notch and let you check them off.</string>
+</dict>
+</plist>
