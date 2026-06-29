@@ -71,6 +71,7 @@
 		11CFC65F2E097F2F00748C80 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC65E2E097F2100748C80 /* OnboardingView.swift */; };
 		11CFC6612E097F6800748C80 /* PermissionsRequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */; };
 		11CFC6632E09918400748C80 /* MusicControllerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */; };
+		A1B2C3D40000000000000002 /* HotkeyTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */; };
 		11CFC6652E09C7B300748C80 /* OnboardingFinishView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6642E09C7B300748C80 /* OnboardingFinishView.swift */; };
 		11D58EA22E760AE100FA8377 /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11D58EA12E760AE100FA8377 /* ImageService.swift */; };
 		11EFCD702E8E92D600D0B974 /* ShelfItemViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11EFCD6F2E8E92D600D0B974 /* ShelfItemViewModel.swift */; };
@@ -91,7 +92,7 @@
 		149E0B972C737D00006418B1 /* WebcamManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149E0B962C737D00006418B1 /* WebcamManager.swift */; };
 		149E0B9A2C737D40006418B1 /* WebcamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149E0B992C737D40006418B1 /* WebcamView.swift */; };
 		14A7E5882C64A89C008C1BE9 /* HelloAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14A7E5872C64A89C008C1BE9 /* HelloAnimation.swift */; };
-		14A7E5972C65FD31008C1BE9 /* boring.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 14A7E5962C65FD31008C1BE9 /* boring.m4a */; };
+		14A7E5972C65FD31008C1BE9 /* notch.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 14A7E5962C65FD31008C1BE9 /* notch.m4a */; };
 		14C08BB62C8DE42D000F8AA0 /* CalendarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */; };
 		14C08BB92C8DE4B1000F8AA0 /* Calendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BB82C8DE4B1000F8AA0 /* Calendar.swift */; };
 		14C08BC12C8E03AD000F8AA0 /* NSImage+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C08BC02C8E03AD000F8AA0 /* NSImage+Extensions.swift */; };
@@ -250,6 +251,7 @@
 		11CFC65E2E097F2100748C80 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsRequestView.swift; sourceTree = "<group>"; };
 		11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicControllerSelectionView.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyTutorialView.swift; sourceTree = "<group>"; };
 		11CFC6642E09C7B300748C80 /* OnboardingFinishView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFinishView.swift; sourceTree = "<group>"; };
 		11D58EA12E760AE100FA8377 /* ImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageService.swift; sourceTree = "<group>"; };
 		11EFCD6F2E8E92D600D0B974 /* ShelfItemViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShelfItemViewModel.swift; sourceTree = "<group>"; };
@@ -270,7 +272,7 @@
 		149E0B962C737D00006418B1 /* WebcamManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamManager.swift; sourceTree = "<group>"; };
 		149E0B992C737D40006418B1 /* WebcamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebcamView.swift; sourceTree = "<group>"; };
 		14A7E5872C64A89C008C1BE9 /* HelloAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelloAnimation.swift; sourceTree = "<group>"; };
-		14A7E5962C65FD31008C1BE9 /* boring.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = boring.m4a; sourceTree = "<group>"; };
+		14A7E5962C65FD31008C1BE9 /* notch.m4a */ = {isa = PBXFileReference; lastKnownFileType = file; path = notch.m4a; sourceTree = "<group>"; };
 		14C08BB52C8DE42D000F8AA0 /* CalendarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarManager.swift; sourceTree = "<group>"; };
 		14C08BB82C8DE4B1000F8AA0 /* Calendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Calendar.swift; sourceTree = "<group>"; };
 		14C08BC02C8E03AD000F8AA0 /* NSImage+Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "NSImage+Extensions.swift"; sourceTree = "<group>"; };
@@ -602,7 +604,7 @@
 				14CEF4172C5CAED300855D72 /* ContentView.swift */,
 				B17266E02C6532560031BA0D /* Localizable.xcstrings */,
 				14CEF4192C5CAED400855D72 /* Assets.xcassets */,
-				14A7E5962C65FD31008C1BE9 /* boring.m4a */,
+				14A7E5962C65FD31008C1BE9 /* notch.m4a */,
 				1443E7F42C609E650027C1FC /* Info.plist */,
 				14CEF41E2C5CAED400855D72 /* notch.entitlements */,
 				14CEF41B2C5CAED400855D72 /* Preview Content */,
@@ -688,6 +690,7 @@
 			isa = PBXGroup;
 			children = (
 				11CFC6642E09C7B300748C80 /* OnboardingFinishView.swift */,
+				A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */,
 				11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */,
 				11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */,
 				11CFC65E2E097F2100748C80 /* OnboardingView.swift */,
@@ -926,7 +929,7 @@
 				112B0EB82E30DD0F00562D6C /* MediaRemoteAdapterTestClient in Resources */,
 				112B0EB92E30DD0F00562D6C /* mediaremote-adapter.pl in Resources */,
 				B17266E12C6532560031BA0D /* Localizable.xcstrings in Resources */,
-				14A7E5972C65FD31008C1BE9 /* boring.m4a in Resources */,
+				14A7E5972C65FD31008C1BE9 /* notch.m4a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1069,6 +1072,7 @@
 				B19016242CC15B5000E3F12E /* Constants.swift in Sources */,
 				1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */,
 				11CFC6632E09918400748C80 /* MusicControllerSelectionView.swift in Sources */,
+				A1B2C3D40000000000000002 /* HotkeyTutorialView.swift in Sources */,
 				B1F0A0022E60000100000001 /* BrightnessManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1284,7 +1288,8 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = notch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Notch;
+				INFOPLIST_KEY_CFBundleDisplayName = Perch;
+				INFOPLIST_KEY_CFBundleName = Perch;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -1300,7 +1305,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.notch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Perch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;
@@ -1337,7 +1342,8 @@
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = notch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Notch;
+				INFOPLIST_KEY_CFBundleDisplayName = Perch;
+				INFOPLIST_KEY_CFBundleName = Perch;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -1353,7 +1359,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.notch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = Perch;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;

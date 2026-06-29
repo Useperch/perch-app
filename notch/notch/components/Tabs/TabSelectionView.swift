@@ -23,7 +23,7 @@ struct TabSelectionView: View {
     @Namespace var animation
 
     private var visibleTabs: [TabModel] {
-        [homeTab, shelfTab]
+        [homeTab]
     }
 
     var body: some View {

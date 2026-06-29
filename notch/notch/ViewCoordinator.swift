@@ -102,8 +102,18 @@ class ViewCoordinator: ObservableObject {
     private var hudReplacementCancellable: AnyCancellable?
 
     private init() {
+        // Perch maps onto the real hardware notch. If this Mac has a built-in
+        // notched display (safe-area inset at the top), always prefer it — even
+        // over a previously stored value. This repairs the common case where
+        // NSScreen.main was an external monitor at first launch and the notch UI
+        // got stranded on a display that has no physical notch.
+        if let notchScreen = NSScreen.builtInNotchScreen,
+           let notchUUID = notchScreen.displayUUID {
+            preferredScreenUUID = notchUUID
+            legacyPreferredScreenName = nil
+        }
         // Perform migration from name-based to UUID-based storage
-        if preferredScreenUUID == nil, let legacyName = legacyPreferredScreenName {
+        else if preferredScreenUUID == nil, let legacyName = legacyPreferredScreenName {
             // Try to find screen by name and migrate to UUID
             if let screen = NSScreen.screens.first(where: { $0.localizedName == legacyName }),
                let uuid = screen.displayUUID {
@@ -162,7 +172,10 @@ class ViewCoordinator: ObservableObject {
             }
 
         Task { @MainActor in
-            helloAnimationRunning = firstLaunch
+            // The hello animation is no longer played on first open. It now plays
+            // once onboarding finishes (see OnboardingView's onFinish in notchApp),
+            // so a first-time user is greeted after setup rather than before it.
+            helloAnimationRunning = false
 
             if Defaults[.hudReplacement] {
                 let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()

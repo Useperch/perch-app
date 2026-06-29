@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import EventKit
 
 @MainActor
 final class NotchAlertIngestionService {
@@ -146,8 +147,13 @@ final class NotchAlertIngestionService {
     }
 
     private func nativeEventKitCandidates() async -> [NotchAlertCandidate] {
+        // Passive consumer: only surface calendar alerts when access is already
+        // granted. Requesting here would pop the system calendar prompt at launch.
+        // The proper place to ask is onboarding (or the Calendar view / Settings),
+        // so when access is undetermined or denied we simply produce no candidates.
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+
         let calendarManager = CalendarManager.shared
-        await calendarManager.checkCalendarAuthorization()
         await calendarManager.updateCurrentDate(Date.now)
 
         let now = Date()

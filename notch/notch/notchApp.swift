@@ -585,7 +585,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             let selectedScreen: NSScreen
 
-            if let preferredScreen = NSScreen.screen(withUUID: coordinator.preferredScreenUUID ?? "") {
+            if let notchScreen = NSScreen.builtInNotchScreen,
+               let notchUUID = notchScreen.displayUUID {
+                // Always map Perch's notch onto the Mac's built-in display (the one
+                // with the real hardware notch), regardless of which display is
+                // currently "main". Handles display hot-plug (e.g. opening the lid
+                // in a clamshell setup).
+                coordinator.selectedScreenUUID = notchUUID
+                selectedScreen = notchScreen
+            } else if let preferredScreen = NSScreen.screen(withUUID: coordinator.preferredScreenUUID ?? "") {
                 coordinator.selectedScreenUUID = coordinator.preferredScreenUUID ?? ""
                 selectedScreen = preferredScreen
             } else if Defaults[.automaticallySwitchDisplay], let mainScreen = NSScreen.main,
@@ -652,6 +660,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 //                        NSApp.setActivationPolicy(.accessory)
                         window.close()
                         NSApp.deactivate()
+                        // Greet the user in the notch now that setup is complete.
+                        // closeHello() (HelloAnimation.onFinish) flips this back off
+                        // once the animation has played through once.
+                        ViewCoordinator.shared.helloAnimationRunning = true
                     },
                     onOpenSettings: {
                         window.close()

@@ -26,6 +26,26 @@ extension NSScreen {
     @MainActor static func screen(withUUID uuid: String) -> NSScreen? {
         return NSScreenUUIDCache.shared.screen(forUUID: uuid)
     }
+
+    /// The Mac's built-in display — where the physical notch lives — or nil if the
+    /// only displays attached are external.
+    ///
+    /// Detection prefers `CGDisplayIsBuiltin`, which is reliable the moment the app
+    /// launches. We do NOT rely on `safeAreaInsets.top > 0` alone because that can
+    /// momentarily read 0 during launch before the window server reports the notch,
+    /// which previously stranded Perch's notch on an external monitor.
+    static var builtInNotchScreen: NSScreen? {
+        // Primary: the literal built-in display (the laptop's own screen).
+        if let builtIn = NSScreen.screens.first(where: { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+            else { return false }
+            return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) == 1
+        }) {
+            return builtIn
+        }
+        // Fallback: any screen reporting a notch safe-area inset.
+        return NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })
+    }
     
     /// Get UUID to NSScreen mapping for all screens
     @MainActor static var screensByUUID: [String: NSScreen] {
