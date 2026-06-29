@@ -1,0 +1,250 @@
+//
+//  NotchTextInputComposer.swift
+//  notch
+//
+//  The typed-input surface shown inside the notch when the user presses Control
+//  twice. It matches the voice listening bar's width but grows taller, with the
+//  text field anchored at the bottom and an image-attachment row above it. The
+//  blue tracing-line glow around the notch is drawn separately by
+//  `NotchVoiceOutline` (overlaid in `ContentView`), exactly as for voice.
+//
+//  Sends through `CompanionManager.sendTypedMessage(_:attachments:)`, the same
+//  pipeline a spoken request uses — so a typed message with images behaves just
+//  like a voice turn that needed to see the screen.
+//
+
+import AppKit
+import SwiftUI
+import UniformTypeIdentifiers
+
+struct NotchTextInputComposer: View {
+    @EnvironmentObject var vm: ViewModel
+    @EnvironmentObject var companionManager: CompanionManager
+    @ObservedObject var controller = NotchTextInputController.shared
+
+    @FocusState private var isTextFieldFocused: Bool
+    @State private var isDropTargeted: Bool = false
+
+    /// The composer always uses the canonical voice blue for its accents (send
+    /// button, caret, drop highlight) — NOT the system accent color and NOT the
+    /// album-tinted aura — so it matches the voice surface's blue identity.
+    private static let voiceBlue = VoiceAuraPalette.blue.glow
+
+    /// Same width as the voice listening bar so the surface lines up with the
+    /// notch exactly the way "Listening…" does — just taller.
+    private var composerWidth: CGFloat {
+        vm.closedNotchSize.width
+            + 2 * VoiceLiveActivity.earWidth
+            + 2 * VoiceLiveActivity.earGap
+    }
+
+    /// Empty space at the very top so the text field and attachments sit BELOW the
+    /// physical notch (the black camera housing) rather than behind it.
+    private var topNotchClearance: CGFloat {
+        vm.effectiveClosedNotchHeight + 8
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Clear the physical notch at the top of the surface.
+            Color.clear.frame(height: topNotchClearance)
+
+            if !controller.attachments.isEmpty {
+                attachmentThumbnailRow
+            }
+
+            inputRow
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 14)
+        .frame(width: composerWidth)
+        .overlay {
+            // A subtle highlight while an image is being dragged over the composer.
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Self.voiceBlue.opacity(0.6), lineWidth: 1.5)
+                    .padding(6)
+            }
+        }
+        .onDrop(of: [.image, .fileURL], isTargeted: $isDropTargeted) { providers in
+            ingest(providers: providers)
+            return true
+        }
+        .onPasteCommand(of: [.image, .fileURL]) { providers in
+            ingest(providers: providers)
+        }
+        // Escape closes the composer without sending.
+        .onExitCommand {
+            controller.dismiss()
+        }
+        .onAppear {
+            // Focus the field as soon as the surface appears. The notch window is
+            // made key by the AppDelegate in response to the same trigger, so the
+            // field can actually take keystrokes by the time this runs.
+            focusTextFieldSoon()
+        }
+    }
+
+    // MARK: - Input row (text field + attach + send), anchored at the bottom
+
+    private var inputRow: some View {
+        HStack(alignment: .center, spacing: 10) {
+            attachButton
+
+            TextField("Ask anything", text: $controller.draftText)
+                .textFieldStyle(.plain)
+                // Match the notch's voice status text (system, 14, medium) so the
+                // composer reads as part of the same surface.
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white)
+                .tint(Self.voiceBlue)
+                .lineLimit(1)
+                .focused($isTextFieldFocused)
+                // Return sends the message.
+                .onSubmit(submit)
+
+            sendButton
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+        )
+    }
+
+    private var attachButton: some View {
+        Button(action: presentImagePicker) {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.75))
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(Color.white.opacity(0.10)))
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursorOnHover()
+        .help("Attach an image")
+    }
+
+    private var sendButton: some View {
+        Button(action: submit) {
+            Image(systemName: "arrow.up.circle.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(controller.canSend ? Self.voiceBlue : Color.white.opacity(0.25))
+        }
+        .buttonStyle(.plain)
+        .disabled(!controller.canSend)
+        .pointingHandCursorOnHover()
+        .help("Send")
+    }
+
+    // MARK: - Attachment thumbnails
+
+    private var attachmentThumbnailRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(controller.attachments) { attachment in
+                    attachmentThumbnail(attachment)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .frame(height: 60)
+    }
+
+    private func attachmentThumbnail(_ attachment: NotchTextInputAttachment) -> some View {
+        Image(nsImage: attachment.thumbnail)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    controller.removeAttachment(id: attachment.id)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white, .black.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursorOnHover()
+                .offset(x: 5, y: -5)
+            }
+            .help(attachment.fileName)
+    }
+
+    // MARK: - Actions
+
+    private func submit() {
+        guard controller.canSend else { return }
+        let text = controller.draftText
+        let attachments = controller.attachments
+        companionManager.sendTypedMessage(text, attachments: attachments)
+        controller.dismiss()
+    }
+
+    /// Open a standard file picker filtered to images.
+    private func presentImagePicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [.image]
+        if panel.runModal() == .OK {
+            for fileURL in panel.urls {
+                controller.addImageAttachment(fromFileURL: fileURL)
+            }
+        }
+        // The panel takes key focus; hand it back to the text field.
+        focusTextFieldSoon()
+    }
+
+    /// Pull images out of dropped/pasted item providers (image data first, then a
+    /// file URL pointing at an image). Loading is async per provider.
+    private func ingest(providers: [NSItemProvider]) {
+        for provider in providers {
+            if provider.canLoadObject(ofClass: NSImage.self) {
+                _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
+                    guard let image = object as? NSImage else { return }
+                    Task { @MainActor in
+                        controller.addImageAttachment(image, fileName: "Pasted image")
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                _ = provider.loadObject(ofClass: URL.self) { fileURL, _ in
+                    guard let fileURL else { return }
+                    Task { @MainActor in
+                        controller.addImageAttachment(fromFileURL: fileURL)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Assert focus now and again on the next runloop tick — the window may only
+    /// just have become key, in which case an immediate focus request is dropped.
+    private func focusTextFieldSoon() {
+        isTextFieldFocused = true
+        DispatchQueue.main.async { isTextFieldFocused = true }
+    }
+}
+
+/// Shows the pointer (link) cursor while hovering an interactive control, per the
+/// project rule that every clickable element communicates clickability on hover.
+private struct PointingHandCursorOnHover: ViewModifier {
+    func body(content: Content) -> some View {
+        content.onHover { isHovering in
+            if isHovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
+    }
+}
+
+private extension View {
+    func pointingHandCursorOnHover() -> some View {
+        modifier(PointingHandCursorOnHover())
+    }
+}
