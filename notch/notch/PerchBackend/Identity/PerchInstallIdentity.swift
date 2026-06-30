@@ -38,6 +38,11 @@ final class PerchInstallIdentity: ObservableObject {
     /// Whether we currently hold an install token (have registered at least once).
     @Published private(set) var isRegistered: Bool
 
+    /// The account's plan + this month's usage, as last reported by the Worker.
+    /// Read-only snapshot for the UI; the Worker remains the enforcer. Defaults to
+    /// the free plan until the first /register or /account/entitlement response.
+    @Published private(set) var entitlement: PerchEntitlement
+
     /// The bearer token. Setting it mirrors the value into the cross-actor cache.
     private var installToken: String? {
         didSet { Self.cacheInstallToken(installToken) }
@@ -50,6 +55,7 @@ final class PerchInstallIdentity: ObservableObject {
         serverTracingEnabled = persisted.tracingEnabled
         installToken = persisted.installToken
         isRegistered = persisted.installToken != nil
+        entitlement = persisted.entitlement ?? .free
         Self.cacheInstallToken(persisted.installToken)
         Self.cacheServerTracingEnabled(persisted.tracingEnabled)
     }
@@ -132,11 +138,56 @@ final class PerchInstallIdentity: ObservableObject {
             if let emailToLink, !emailToLink.isEmpty {
                 email = emailToLink
             }
+            // The Worker returns the current entitlement on /register; decode it
+            // from the same response so the app's plan state is fresh on launch.
+            if let decodedEntitlement = Self.decodeEntitlement(from: data) {
+                entitlement = decodedEntitlement
+            }
             persist()
             perchDebugLog("install-identity: registered install \(installId.prefix(8))")
         } catch {
             perchDebugLog("install-identity: register error \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Entitlement
+
+    /// Re-fetches the entitlement from the Worker. Cheap; call on launch and at
+    /// feature entry points so an upgrade made on the website shows up without a
+    /// restart (the install token already points at the now-upgraded account).
+    func refreshEntitlement() async {
+        guard isRegistered,
+              let url = URL(string: "\(Self.workerBaseURL)/account/entitlement") else { return }
+
+        var request = authorizedRequest(url: url, method: "GET")
+        do {
+            let (data, _) = try await Self.registrationSession.data(for: request)
+            if let decodedEntitlement = Self.decodeEntitlement(from: data) {
+                entitlement = decodedEntitlement
+                persist()
+            }
+        } catch {
+            perchDebugLog("install-identity: refresh-entitlement error \(error.localizedDescription)")
+        }
+    }
+
+    /// Builds a request carrying the install token (the Worker's auth principal).
+    private func authorizedRequest(url: URL, method: String) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let installToken {
+            request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
+        return request
+    }
+
+    /// Decodes the `entitlement` field shared by the /register, verify-confirm,
+    /// and /account/entitlement responses.
+    private struct EntitlementEnvelope: Decodable { let entitlement: PerchEntitlement? }
+    private static func decodeEntitlement(from data: Data) -> PerchEntitlement? {
+        (try? JSONDecoder().decode(EntitlementEnvelope.self, from: data))?.entitlement
     }
 
     // MARK: - Persistence
@@ -146,6 +197,9 @@ final class PerchInstallIdentity: ObservableObject {
         var installToken: String?
         var email: String?
         var tracingEnabled: Bool
+        // Cached so the app remembers a paid plan offline. Optional for forward/
+        // backward compatibility with identity files written before this field.
+        var entitlement: PerchEntitlement?
     }
 
     private static let identityFileURL = PerchSupportPaths.file("install-identity.json")
@@ -171,7 +225,8 @@ final class PerchInstallIdentity: ObservableObject {
             installId: UUID().uuidString.lowercased(),
             installToken: nil,
             email: nil,
-            tracingEnabled: true
+            tracingEnabled: true,
+            entitlement: nil
         )
         Self.write(minted)
         return minted
@@ -182,7 +237,8 @@ final class PerchInstallIdentity: ObservableObject {
             installId: installId,
             installToken: installToken,
             email: email,
-            tracingEnabled: serverTracingEnabled
+            tracingEnabled: serverTracingEnabled,
+            entitlement: entitlement
         ))
     }
 

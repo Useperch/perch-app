@@ -36,7 +36,11 @@ class ClaudeAPI {
         warmUpTLSConnectionIfNeeded()
     }
 
-    private func makeAPIRequest() -> URLRequest {
+    /// Builds the proxy request. `feature` tags the call for usage metering at the
+    /// Worker (e.g. "companion" counts toward the free message cap). nil leaves the
+    /// call untagged and therefore unmetered/uncapped — the right default for
+    /// internal calls (workflow decider, playbook synth) that aren't user messages.
+    private func makeAPIRequest(feature: String? = nil) -> URLRequest {
         var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.timeoutInterval = 120
@@ -46,6 +50,9 @@ class ClaudeAPI {
         // in soft mode.
         if let installToken = PerchInstallIdentity.currentInstallToken() {
             request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
+        if let feature {
+            request.setValue(feature, forHTTPHeaderField: "X-Perch-Feature")
         }
         return request
     }
@@ -110,11 +117,12 @@ class ClaudeAPI {
         conversationHistory: [(userPlaceholder: String, assistantResponse: String)] = [],
         userPrompt: String,
         maxTokens: Int = 1024,
+        feature: String? = nil,
         onTextChunk: @MainActor @Sendable (String) -> Void
     ) async throws -> (text: String, duration: TimeInterval) {
         let startTime = Date()
 
-        var request = makeAPIRequest()
+        var request = makeAPIRequest(feature: feature)
 
         // Build messages array
         var messages: [[String: Any]] = []
@@ -224,11 +232,12 @@ class ClaudeAPI {
         systemPrompt: String,
         conversationHistory: [(userPlaceholder: String, assistantResponse: String)] = [],
         userPrompt: String,
-        maxTokens: Int = 256
+        maxTokens: Int = 256,
+        feature: String? = nil
     ) async throws -> (text: String, duration: TimeInterval) {
         let startTime = Date()
 
-        var request = makeAPIRequest()
+        var request = makeAPIRequest(feature: feature)
 
         var messages: [[String: Any]] = []
         for (userPlaceholder, assistantResponse) in conversationHistory {

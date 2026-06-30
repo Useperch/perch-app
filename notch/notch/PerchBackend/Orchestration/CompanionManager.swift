@@ -23,7 +23,10 @@ enum CompanionVoiceState {
 @MainActor
 final class CompanionManager: ObservableObject {
     @Published private(set) var voiceState: CompanionVoiceState = .idle {
-        didSet { updateTTSMetering(previousState: oldValue) }
+        didSet {
+            updateTTSMetering(previousState: oldValue)
+            updateMusicDucking(previousState: oldValue)
+        }
     }
     @Published private(set) var lastTranscript: String?
 
@@ -127,6 +130,28 @@ final class CompanionManager: ObservableObject {
             ttsMeteringTask?.cancel()
             ttsMeteringTask = nil
             ttsAudioPowerLevel = 0
+        }
+    }
+
+    /// Lowers the music app's volume while Perch is mid-exchange so Perch (and
+    /// the user) can be heard over it, then restores it. Driven by `updateMusicDucking`.
+    private let musicDuckingController = MusicDuckingController()
+
+    /// Ducks the user's music while Perch is mid-exchange — whether the user is
+    /// talking (`.listening`), Perch is thinking (`.processing`), or Perch is
+    /// speaking (`.responding`) — and restores it once Perch returns to `.idle`.
+    /// Treating the whole non-idle span as one exchange keeps the music quiet
+    /// across the brief `.listening → .processing → .responding` transitions
+    /// instead of jumping back up between them. Called from `voiceState.didSet`,
+    /// mirroring `updateTTSMetering`.
+    private func updateMusicDucking(previousState: CompanionVoiceState) {
+        guard voiceState != previousState else { return }
+
+        if voiceState == .idle {
+            musicDuckingController.restoreAfterPerchVoice()
+        } else {
+            // Idempotent: only the first non-idle transition actually ducks.
+            musicDuckingController.duckForPerchVoice()
         }
     }
 
@@ -455,7 +480,9 @@ final class CompanionManager: ObservableObject {
     /// Whether the user has submitted their email during onboarding.
     @Published var hasSubmittedEmail: Bool = UserDefaults.standard.bool(forKey: "hasSubmittedEmail")
 
-    /// Submits the user's email to FormSpark and identifies them in PostHog.
+    /// Records the user's onboarding email by linking it to this install. The
+    /// email is a plain label (ownership is proven later at upgrade by Stripe);
+    /// linking it lets checkout prefill and the account converge on one address.
     func submitEmail(_ email: String) {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedEmail.isEmpty else { return }
@@ -468,17 +495,8 @@ final class CompanionManager: ObservableObject {
             "email": trimmedEmail
         ])
 
-        // Submit to FormSpark
-        Task {
-            var request = URLRequest(url: URL(string: "https://REDACTED_FEEDBACK_ENDPOINT")!)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmedEmail])
-            _ = try? await URLSession.shared.data(for: request)
-        }
-
-        // Link the email to this install so traces are attributable, and refresh
-        // the install token / server tracing kill switch.
+        // Link the email to this install (records installs.email on the Worker) and
+        // refresh the install token / entitlement.
         Task { await PerchInstallIdentity.shared.register(emailToLink: trimmedEmail) }
     }
 
@@ -1379,6 +1397,9 @@ final class CompanionManager: ObservableObject {
                         systemPrompt: voiceSystemPrompt,
                         conversationHistory: historyForAPI,
                         userPrompt: transcript,
+                        // Tags this turn as a billable "message" (voice or text) so it
+                        // counts toward the free-tier cap at the Worker.
+                        feature: "companion",
                         onTextChunk: { _ in
                             // No streaming text display — spinner stays until TTS plays
                         }

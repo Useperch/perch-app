@@ -30,6 +30,9 @@ struct SettingsView: View {
                 NavigationLink(value: "General") {
                     Label("General", systemImage: "gear")
                 }
+                NavigationLink(value: "Account") {
+                    Label("Account", systemImage: "person.crop.circle")
+                }
                 NavigationLink(value: "Appearance") {
                     Label("Appearance", systemImage: "eye")
                 }
@@ -73,6 +76,8 @@ struct SettingsView: View {
                 switch selectedTab {
                 case "General":
                     GeneralSettings()
+                case "Account":
+                    AccountSettings()
                 case "Appearance":
                     Appearance()
                 case "Media":
@@ -1699,6 +1704,120 @@ struct AccentCircleButton: View {
         }
         .buttonStyle(.plain)
         .help(isSystemDefault ? "Use your macOS system accent color" : "")
+    }
+}
+
+struct AccountSettings: View {
+    @ObservedObject private var identity = PerchInstallIdentity.shared
+    @State private var isStartingCheckout = false
+    @State private var checkoutMessage: String?
+
+    private var companionUsed: Int {
+        identity.entitlement.usage[PerchFeature.companion.rawValue] ?? 0
+    }
+    private var companionCap: Int {
+        identity.entitlement.cap(for: .companion)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Text("Plan")
+                    Spacer()
+                    Text(identity.entitlement.isPro ? "Pro" : "Free")
+                        .fontWeight(.semibold)
+                        .foregroundStyle(identity.entitlement.isPro ? Color.effectiveAccent : .secondary)
+                }
+                if let email = identity.email, !email.isEmpty {
+                    HStack {
+                        Text("Email")
+                        Spacer()
+                        Text(email).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Account")
+            }
+
+            Section {
+                if identity.entitlement.isPro {
+                    HStack {
+                        Text("Messages")
+                        Spacer()
+                        Text("Unlimited").foregroundStyle(.secondary)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Messages this month")
+                            Spacer()
+                            Text("\(companionUsed) of \(companionCap)")
+                                .foregroundStyle(companionUsed >= companionCap ? .red : .secondary)
+                        }
+                        ProgressView(
+                            value: Double(min(companionUsed, companionCap)),
+                            total: Double(max(companionCap, 1))
+                        )
+                        .tint(.effectiveAccent)
+                    }
+                    .padding(.vertical, 2)
+                }
+            } header: {
+                Text("Usage")
+            } footer: {
+                if !identity.entitlement.isPro {
+                    Text("Free includes \(companionCap) messages a month — voice or text. Upgrade for unlimited.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if !identity.entitlement.isPro {
+                Section {
+                    Button(action: startCheckout) {
+                        HStack {
+                            Text(isStartingCheckout ? "Opening checkout…" : "Upgrade to Pro — $20/mo")
+                            Spacer()
+                            if !isStartingCheckout {
+                                Image(systemName: "arrow.up.right")
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(isStartingCheckout)
+
+                    if let checkoutMessage {
+                        Text(checkoutMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("Checkout opens in your browser. Enter your email there and Pro applies to this Mac automatically.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .accentColor(.effectiveAccent)
+        .navigationTitle("Account")
+        .task {
+            // Reflect any upgrade made on another device / the website.
+            await identity.refreshEntitlement()
+        }
+    }
+
+    private func startCheckout() {
+        isStartingCheckout = true
+        checkoutMessage = nil
+        Task {
+            let started = await PerchBilling.startUpgradeCheckout()
+            isStartingCheckout = false
+            if !started {
+                checkoutMessage = "Upgrades aren't available right now. Please try again later."
+            }
+        }
     }
 }
 
