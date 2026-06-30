@@ -69,7 +69,16 @@ final class BrowserSubagentProcessSupervisor {
             return socketPath
         }
 
-        guard let sidecarDirectory = AppBundleConfiguration.stringValue(forKey: Self.sidecarPathInfoKey) else {
+        // Prefer an explicit Info.plist override; otherwise derive the sidecar
+        // directory from the resolved repo root (`<repo>/browser-subagent`). The
+        // derivation keeps machine-specific absolute paths out of the committed
+        // bundle, so any clone works without editing Info.plist.
+        let sidecarDirectory: String
+        if let configuredSidecarDirectory = AppBundleConfiguration.stringValue(forKey: Self.sidecarPathInfoKey) {
+            sidecarDirectory = configuredSidecarDirectory
+        } else if let repoRootURL = PerchSupportPaths.repoRootURL {
+            sidecarDirectory = repoRootURL.appendingPathComponent("browser-subagent", isDirectory: true).path
+        } else {
             throw SupervisorError.sidecarPathMissing
         }
 
