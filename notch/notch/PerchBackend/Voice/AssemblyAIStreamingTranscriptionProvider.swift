@@ -64,6 +64,10 @@ final class AssemblyAIStreamingTranscriptionProvider: BuddyTranscriptionProvider
     private func fetchTemporaryToken() async throws -> String {
         var request = URLRequest(url: URL(string: Self.tokenProxyURL)!)
         request.httpMethod = "POST"
+        // Identify this install to the Worker gateway (per-install auth + rate limiting).
+        if let installToken = PerchInstallIdentity.currentInstallToken() {
+            request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
 
         let (data, response) = try await URLSession.shared.data(for: request)
 

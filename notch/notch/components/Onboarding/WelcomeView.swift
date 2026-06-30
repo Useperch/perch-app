@@ -7,19 +7,36 @@
 
 import SwiftUI
 import SwiftUIIntrospect
+import FluidGradient
 
 struct WelcomeView: View {
     var onGetStarted: (() -> Void)? = nil
     var body: some View {
         ZStack(alignment: .top) {
             ZStack {
-                Image("spotlight")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .padding(.bottom)
-                    .blur(radius: 3)
-                    .offset(y: -5)
-                    .background(SparkleView().opacity(0.6))
+                // Replaces the old static "spotlight" image: Cindori's FluidGradient
+                // (Metal/CoreAnimation-backed) renders slowly-morphing color blobs as a
+                // soft glow behind the logo, masked to a circular pool so it fades into
+                // the vibrancy. Same sparkles behind it as before.
+                FluidGradient(
+                    blobs: [.blue, .purple, .indigo, .cyan],
+                    highlights: [.cyan, .white, .blue],
+                    speed: 0.6,
+                    blur: 0.78
+                )
+                .frame(width: 280, height: 280)
+                .mask(
+                    RadialGradient(
+                        colors: [.white, .white.opacity(0.85), .clear],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 140
+                    )
+                )
+                .opacity(0.9)
+                .padding(.bottom)
+                .offset(y: -5)
+                .background(SparkleView().opacity(0.6))
                 VStack(spacing: 8) {
                     Image("logo2")
                         .resizable()
@@ -73,4 +90,5 @@ struct WelcomeView: View {
 
 #Preview {
     WelcomeView()
+        .frame(width: 400, height: 600)
 }

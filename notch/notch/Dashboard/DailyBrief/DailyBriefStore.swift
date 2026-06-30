@@ -8,8 +8,13 @@
 //
 //  Mirrors `DashboardLocalStore`: `@MainActor`, `@Published private(set)` state, a forgiving
 //  load that never throws, atomic writes, debounced saves, and copy-on-write mutations
-//  (nothing mutated in place — project immutability rule). On first launch (no file yet) the
-//  lists are seeded from `DailyBriefSampleData` so the page reads well out of the box.
+//  (nothing mutated in place — project immutability rule).
+//
+//  The lists are filled from the day's LIVE brief: `applyDailyBrief(day:...)` seeds them
+//  from the Claude synthesis at most once per calendar day (`seededDay`), so a user's
+//  same-day edits survive but each new morning brings a fresh, real catch-up / priorities.
+//  Before the first live brief resolves (and offline) each list shows a single empty,
+//  typeable row — honest blank state, never fabricated placeholder content.
 //
 
 import Foundation
@@ -21,9 +26,13 @@ enum DailyBriefListKind {
 }
 
 /// The Codable on-disk shape — both lists in one versioned file (additive to extend later).
+/// `seededDay` ("yyyy-MM-dd") records the day the lists were last filled from the live brief,
+/// so the same day's seed isn't re-applied over the user's edits. Optional so older files
+/// (which predate it) still decode (missing → `nil` → next live brief re-seeds them).
 private struct DailyBriefListsState: Codable, Equatable {
     var catchUp: [DailyBriefItem]
     var priorities: [DailyBriefItem]
+    var seededDay: String?
 }
 
 @MainActor
@@ -34,6 +43,10 @@ final class DailyBriefStore: ObservableObject {
 
     @Published private(set) var catchUp: [DailyBriefItem]
     @Published private(set) var priorities: [DailyBriefItem]
+
+    /// The day ("yyyy-MM-dd") the lists were last seeded from the live brief, or `nil` if
+    /// never. Guards `applyDailyBrief` so it seeds at most once per day.
+    private var seededDay: String?
 
     private let storageFileURL: URL
     private var pendingSaveTask: Task<Void, Never>?
@@ -46,11 +59,35 @@ final class DailyBriefStore: ObservableObject {
         if let loaded = Self.load(from: storageFileURL) {
             catchUp = loaded.catchUp
             priorities = loaded.priorities
+            seededDay = loaded.seededDay
         } else {
-            // First launch: seed from the curated sample so the lists aren't empty.
-            catchUp = DailyBriefSampleData.catchUp.map { DailyBriefItem(text: $0) }
-            priorities = DailyBriefSampleData.priorities.map { DailyBriefItem(text: $0) }
+            // First launch: a single empty, typeable row per list — an honest blank state
+            // (no fabricated content). The day's live brief fills them in when it resolves.
+            catchUp = [DailyBriefItem(text: "")]
+            priorities = [DailyBriefItem(text: "")]
+            seededDay = nil
         }
+    }
+
+    // MARK: Daily seed from the live brief
+
+    /// Replace the two lists with the day's freshly-synthesized catch-up / priorities, but
+    /// only once per calendar `day` — so the first open of the morning brings in the real
+    /// brief, while any edits the user makes later that same day are preserved on reopen.
+    /// A brief with nothing usable for a list leaves that list untouched (never wipes it to
+    /// empty on a transient synthesis miss).
+    func applyDailyBrief(day: String, catchUp newCatchUp: [String], priorities newPriorities: [String]) {
+        guard seededDay != day else { return }
+        guard !newCatchUp.isEmpty || !newPriorities.isEmpty else { return }
+
+        if !newCatchUp.isEmpty {
+            catchUp = newCatchUp.map { DailyBriefItem(text: $0) }
+        }
+        if !newPriorities.isEmpty {
+            priorities = newPriorities.map { DailyBriefItem(text: $0) }
+        }
+        seededDay = day
+        scheduleSave()
     }
 
     // MARK: Reads
@@ -120,7 +157,7 @@ final class DailyBriefStore: ObservableObject {
 
     private func scheduleSave() {
         pendingSaveTask?.cancel()
-        let snapshot = DailyBriefListsState(catchUp: catchUp, priorities: priorities)
+        let snapshot = DailyBriefListsState(catchUp: catchUp, priorities: priorities, seededDay: seededDay)
         pendingSaveTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 400_000_000)
             guard !Task.isCancelled else { return }

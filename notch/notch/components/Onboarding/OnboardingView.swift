@@ -24,6 +24,7 @@ import CoreGraphics
 // system does surface that one in context.)
 enum OnboardingStep {
     case welcome
+    case emailVerification
     case microphonePermission
     case screenRecordingPermission
     case accessibilityPermission
@@ -47,9 +48,20 @@ struct OnboardingView: View {
             case .welcome:
                 WelcomeView {
                     withAnimation(.easeInOut(duration: 0.6)) {
-                        step = .microphonePermission
+                        step = .emailVerification
                     }
                 }
+                .transition(.opacity)
+
+            // MARK: Account — link this Mac by verifying an email (skippable)
+            case .emailVerification:
+                EmailVerificationView(
+                    onContinue: {
+                        withAnimation(.easeInOut(duration: 0.6)) {
+                            step = .microphonePermission
+                        }
+                    }
+                )
                 .transition(.opacity)
 
             // MARK: Ears — Microphone + Speech Recognition (core)

@@ -45,6 +45,13 @@ enum PerchRunLog {
         let fileURL: URL
         let startedAt: Date
         let inputSummary: String
+        /// Structured side-channel filled from the same append/appendBlock calls,
+        /// shipped to the central backend on `endRun`. A reference type so the
+        /// value-type RunDocument can be copied across async boundaries (and handed
+        /// to the subagent) while all copies accumulate into one trace. Always
+        /// created here; whether anything is actually uploaded is decided later by
+        /// `endRun` (the env kill switch) and `TelemetryConsent` (opt-in + server flag).
+        let turnTraceAccumulator: TurnTraceAccumulator?
     }
 
     // MARK: - Configuration
@@ -119,10 +126,25 @@ enum PerchRunLog {
             fileName: fileName,
             fileURL: fileURL,
             startedAt: startedAt,
-            inputSummary: inputSummary
+            inputSummary: inputSummary,
+            turnTraceAccumulator: TurnTraceAccumulator(
+                clientRunId: shortId,
+                inputKind: inputKind,
+                input: input,
+                startedAt: startedAt
+            )
         )
         appendMasterIndexLine(for: run, inputKind: inputKind)
         return run
+    }
+
+    /// Finalizes the run's structured trace and hands it to the uploader. Safe to
+    /// call from multiple terminal paths (finalize runs at most once). A no-op
+    /// when logging is disabled or no run document exists.
+    static func endRun(_ run: RunDocument?) {
+        guard !isDisabledByEnvironment, let run,
+              let trace = run.turnTraceAccumulator?.finalize(endedAt: Date()) else { return }
+        TurnTraceUploader.shared.enqueue(trace)
     }
 
     /// Appends a single tagged trace line to a run document.
@@ -130,6 +152,7 @@ enum PerchRunLog {
         guard !isDisabledByEnvironment, let run else { return }
         let line = "`\(lineTimestampFormatter.string(from: Date()))` **[\(category.rawValue)]** \(message)\n\n"
         write(line, to: run.fileURL, append: true)
+        run.turnTraceAccumulator?.record(category: category.rawValue, title: message, body: "")
     }
 
     /// Appends a tagged line followed by a fenced block — used for verbatim
@@ -152,6 +175,7 @@ enum PerchRunLog {
 
         """
         write(block, to: run.fileURL, append: true)
+        run.turnTraceAccumulator?.record(category: category.rawValue, title: title, body: body)
     }
 
     /// Appends the full AppleScript a run's agent executed, with its result —

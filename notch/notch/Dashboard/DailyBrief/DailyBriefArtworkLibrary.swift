@@ -17,13 +17,39 @@ import Foundation
 
 enum DailyBriefArtworkLibrary {
 
-    /// The curated paintings, in no particular order. Seeded with the one existing
-    /// `daily-brief-painting` asset (Monet, "Vétheuil"); append more as they're bundled.
+    /// The curated paintings, in no particular order. All are calm, light-toned
+    /// public-domain works (so the header text stays legible sitting directly on the art).
+    /// Each entry pairs an asset-catalog image name with a short caption shown beside the
+    /// summary. Append more by bundling a `daily-brief-*` imageset and adding a line here.
     static let artworks: [DailyBriefArtwork] = [
         DailyBriefArtwork(
-            imageName: "daily-brief-painting",
+            imageName: "daily-brief-painting",                 // Thomas Cole, "The Oxbow"
             caption: "A calm scene for a calm day"
-        )
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-water-lilies",       // Claude Monet, "Water Lilies"
+            caption: "Where the morning is still"
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-wheatstacks",        // Monet, "Stacks of Wheat (End of Summer)"
+            caption: "Gold in the late light"
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-beach-sainte-adresse", // Monet, "The Beach at Sainte-Adresse"
+            caption: "A bright stretch of shore"
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-cliff-pourville",    // Monet, "Cliff Walk at Pourville"
+            caption: "Wind off the open sea"
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-poppy-field",        // Monet, "Poppy Field (Giverny)"
+            caption: "A field full of summer"
+        ),
+        DailyBriefArtwork(
+            imageName: "daily-brief-monet-sandvika",           // Monet, "Sandvika, Norway"
+            caption: "A clear, cold morning"
+        ),
     ]
 
     /// The painting for a given day. Deterministic on the day-of-year so the card is

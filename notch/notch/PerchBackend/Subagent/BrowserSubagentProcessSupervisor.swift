@@ -37,6 +37,12 @@ final class BrowserSubagentProcessSupervisor {
     /// Capturing here makes those failures diagnosable after the fact.
     private static let sidecarLogPath = PerchSupportPaths.file("sidecar.log").path
 
+    /// The Worker gateway base URL (same one the app's ClaudeAPI uses). The
+    /// sidecar's LLM calls are routed through `<base>/agent` so the real provider
+    /// key never ships in the sidecar binary.
+    private static let workerBaseURL = AppBundleConfiguration.stringValue(forKey: "WorkerBaseURL")
+        ?? "https://your-worker-name.your-subdomain.workers.dev"
+
     private var sidecarProcess: Process?
 
     /// The unix socket path the sidecar binds (read once from Info.plist).
@@ -69,7 +75,16 @@ final class BrowserSubagentProcessSupervisor {
             return socketPath
         }
 
-        guard let sidecarDirectory = AppBundleConfiguration.stringValue(forKey: Self.sidecarPathInfoKey) else {
+        // Prefer an explicit Info.plist override; otherwise derive the sidecar
+        // directory from the resolved repo root (`<repo>/browser-subagent`). The
+        // derivation keeps machine-specific absolute paths out of the committed
+        // bundle, so any clone works without editing Info.plist.
+        let sidecarDirectory: String
+        if let configuredSidecarDirectory = AppBundleConfiguration.stringValue(forKey: Self.sidecarPathInfoKey) {
+            sidecarDirectory = configuredSidecarDirectory
+        } else if let repoRootURL = PerchSupportPaths.repoRootURL {
+            sidecarDirectory = repoRootURL.appendingPathComponent("browser-subagent", isDirectory: true).path
+        } else {
             throw SupervisorError.sidecarPathMissing
         }
 
@@ -109,6 +124,20 @@ final class BrowserSubagentProcessSupervisor {
         let quotedSocketPath = Self.shellQuote(socketPath)
         let command = "cd \(quotedDirectory) && ./run.sh --socket \(quotedSocketPath)"
         process.arguments = ["-lc", command]
+
+        // Route the sidecar's LLM calls through the Worker /agent proxy: the install
+        // token authenticates and meters the calls (X-Perch-Feature: agent_run on
+        // the Worker side), and the real OpenRouter key stays on the Worker — never
+        // in the shipped sidecar binary. The sidecar reads OPENROUTER_BASE_URL +
+        // OPENROUTER_API_KEY from its env, and load_dotenv(override=False) means
+        // these injected values win over any local .env. Only injected when we hold
+        // a token; otherwise the sidecar falls back to its own .env (local dev).
+        var environment = ProcessInfo.processInfo.environment
+        if let installToken = PerchInstallIdentity.currentInstallToken() {
+            environment["OPENROUTER_BASE_URL"] = "\(Self.workerBaseURL)/agent"
+            environment["OPENROUTER_API_KEY"] = installToken
+        }
+        process.environment = environment
 
         // Redirect the sidecar's stdout + stderr to a log file so launch
         // failures (exec denied, Python traceback, missing venv) are recoverable
