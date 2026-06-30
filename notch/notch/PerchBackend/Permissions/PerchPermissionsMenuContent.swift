@@ -17,6 +17,11 @@ import SwiftUI
 struct PerchPermissionsMenuContent: View {
     @ObservedObject var toggles: PerchCapabilityToggles
 
+    /// The local "Share diagnostics" opt-in. Backed by TelemetryConsent
+    /// (UserDefaults), default OFF — so this menu is the source of truth the
+    /// off-actor uploaders read via TelemetryConsent.isUploadAllowed().
+    @State private var isShareDiagnosticsEnabled = TelemetryConsent.isLocallyEnabled()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Permissions")
@@ -39,6 +44,21 @@ struct PerchPermissionsMenuContent: View {
                 title: "Accessibility",
                 help: "Accessibility — lets Perch act for you. Moves the cursor, clicks, and types.",
                 isOn: $toggles.isHandsEnabled)
+
+            Divider().padding(.vertical, 2)
+
+            permissionToggleRow(
+                title: "Share diagnostics",
+                help: "Share diagnostics — uploads your prompts, Perch's replies, agent runs, and step screenshots to help improve Perch. Off by default.",
+                isOn: $isShareDiagnosticsEnabled)
+                .onChange(of: isShareDiagnosticsEnabled) { _, newValue in
+                    TelemetryConsent.setLocallyEnabled(newValue)
+                    // Flush the offline queue and resume watching the moment it's on.
+                    if newValue {
+                        TurnTraceUploader.shared.start()
+                        SubagentTraceUploader.shared.start()
+                    }
+                }
         }
     }
 

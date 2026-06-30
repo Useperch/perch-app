@@ -35,6 +35,10 @@ final class ElevenLabsTTSClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        // Identify this install to the Worker gateway (per-install auth + rate limiting).
+        if let installToken = PerchInstallIdentity.currentInstallToken() {
+            request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
 
         let body: [String: Any] = [
             "text": text,

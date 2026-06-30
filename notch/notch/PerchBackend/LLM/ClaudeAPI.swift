@@ -41,6 +41,12 @@ class ClaudeAPI {
         request.httpMethod = "POST"
         request.timeoutInterval = 120
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Identify this install to the Worker gateway (per-install auth + rate
+        // limiting). nil before the first /register — the Worker tolerates that
+        // in soft mode.
+        if let installToken = PerchInstallIdentity.currentInstallToken() {
+            request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
         return request
     }
 

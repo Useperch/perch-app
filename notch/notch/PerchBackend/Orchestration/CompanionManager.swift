@@ -476,6 +476,10 @@ final class CompanionManager: ObservableObject {
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmedEmail])
             _ = try? await URLSession.shared.data(for: request)
         }
+
+        // Link the email to this install so traces are attributable, and refresh
+        // the install token / server tracing kill switch.
+        Task { await PerchInstallIdentity.shared.register(emailToLink: trimmedEmail) }
     }
 
     /// Wires notch-alert presentation gates from the notch UI layer (open state,
@@ -1425,6 +1429,9 @@ final class CompanionManager: ObservableObject {
                         spokenConfirmation: spokenConfirmation,
                         transcript: transcript
                     )
+                    // The decision turn ends here; the autonomous run is captured
+                    // separately by the subagent trace.
+                    PerchRunLog.endRun(run)
                     return
                 case .dashboardWidget(let spec, let spokenConfirmation):
                     PerchRunLog.append(run, .plan, "intent gate → DASHBOARD: \(spec)")
@@ -1433,10 +1440,12 @@ final class CompanionManager: ObservableObject {
                         spokenConfirmation: spokenConfirmation,
                         transcript: transcript
                     )
+                    PerchRunLog.endRun(run)
                     return
                 case .clarify(let question):
                     PerchRunLog.append(run, .plan, "intent gate → CLARIFY: \(question)")
                     await handleClarifyQuestion(question: question, transcript: transcript)
+                    PerchRunLog.endRun(run)
                     return
                 case .answer:
                     PerchRunLog.append(run, .plan, "intent gate → ANSWER: continuing with pointing pipeline")
@@ -1534,6 +1543,10 @@ final class CompanionManager: ObservableObject {
                 print("⚠️ Companion response error: \(error)")
                 displayCreditsErrorMessage()
             }
+
+            // Terminal point for the answer / error / cancellation paths (the
+            // act/dashboard/clarify branches end their own runs above). Idempotent.
+            PerchRunLog.endRun(run)
 
             if !Task.isCancelled {
                 voiceState = .idle

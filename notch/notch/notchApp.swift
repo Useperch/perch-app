@@ -336,6 +336,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         companionManager.overlayWindowManager.isSuppressed = true
         companionManager.start()
 
+        // Multi-user identity: register this install with the Worker gateway,
+        // refreshing its install token and the server-side tracing kill switch.
+        // Best-effort and non-blocking — the app runs fine before it completes.
+        Task { await PerchInstallIdentity.shared.register() }
+
+        // Telemetry: flush any traces that failed to upload while offline, then
+        // watch the sidecar's trace directory and ship completed agent runs.
+        TurnTraceUploader.shared.start()
+        SubagentTraceUploader.shared.start()
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenConfigurationDidChange),
