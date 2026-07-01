@@ -251,6 +251,20 @@ struct ContentView: View {
                                 await companionManager.pollNotchAlertsOnce()
                             }
                         }
+                        // When the tray closes, bring the composer back (with its
+                        // staged context intact) if the "+" button opened the tray.
+                        if newState == .closed {
+                            textInput.restoreComposerAfterTray()
+                        }
+                    }
+                    // The composer's "+" button opens the tray (Shelf) as a context
+                    // drop zone. Open it directly rather than via `doOpen()`, whose
+                    // guard bails while the composer is (was) active.
+                    .onReceive(NotificationCenter.default.publisher(for: .perchShowShelf)) { _ in
+                        coordinator.currentView = .shelf
+                        withAnimation(animationSpring) {
+                            vm.open()
+                        }
                     }
                     .onChange(of: companionManager.systemFocusStatusMonitor.isFocusActive) { _, isFocusActive in
                         if isFocusActive {

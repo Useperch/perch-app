@@ -50,4 +50,7 @@ extension Notification.Name {
     /// Posted when the text-input surface is dismissed, so the notch window can
     /// relinquish keyboard focus (mirror of `.perchShowTextInput`).
     static let perchTextInputDidDismiss = Notification.Name("perchTextInputDidDismiss")
+    /// Posted to open the notch's tray (Shelf) page as a drop zone for query
+    /// context — fired by the composer's "+" button.
+    static let perchShowShelf = Notification.Name("perchShowShelf")
 }

@@ -57,6 +57,10 @@ final class NotchTextInputController: ObservableObject {
     /// Cap so a runaway paste/drop can't stage an unbounded number of images.
     private let maximumAttachmentCount = 6
 
+    /// Set when the composer opened the tray via its "+" button so it can be
+    /// restored (with its staged context intact) once the tray closes.
+    private(set) var shouldRestoreComposerAfterTray = false
+
     private init() {}
 
     /// True when there is something worth sending (text or at least one image).
@@ -99,7 +103,63 @@ final class NotchTextInputController: ObservableObject {
         NotificationCenter.default.post(name: .perchTextInputDidDismiss, object: nil)
     }
 
+    // MARK: - Tray (context drop zone)
+
+    /// Open the notch's tray page to stage image context for the next query. If the
+    /// composer is currently up, hide it WITHOUT clearing its draft or attachments
+    /// (so the staged context survives) and remember to restore it once the tray
+    /// closes. Called by the composer's "+" button.
+    func requestTray() {
+        if isActive {
+            shouldRestoreComposerAfterTray = true
+            isActive = false
+            // Relinquish keyboard focus + restore normal window sizing while the tray
+            // is shown, without wiping the draft/attachments the way `dismiss()` does.
+            NotificationCenter.default.post(name: .perchTextInputDidDismiss, object: nil)
+        }
+        NotificationCenter.default.post(name: .perchShowShelf, object: nil)
+    }
+
+    /// Arm the composer to open once the tray closes — used after a tray drop so
+    /// the user lands in the text box with the dropped image(s) already attached,
+    /// regardless of how the tray was opened (drag-into-notch or the "+" button).
+    func showComposerAfterTrayCloses() {
+        shouldRestoreComposerAfterTray = true
+    }
+
+    /// Bring the composer back after the tray closes, with its draft + staged
+    /// context intact. No-op unless the composer opened the tray itself.
+    func restoreComposerAfterTray() {
+        guard shouldRestoreComposerAfterTray else { return }
+        shouldRestoreComposerAfterTray = false
+        activate()
+    }
+
     // MARK: - Attachments
+
+    /// Stage images out of dropped/pasted item providers (image data first, then a
+    /// file URL pointing at an image). Non-image providers are ignored. Shared by
+    /// the composer's drop/paste handlers and the tray's drop handler so both paths
+    /// use one implementation. Loading is async per provider.
+    func ingest(providers: [NSItemProvider]) {
+        for provider in providers {
+            if provider.canLoadObject(ofClass: NSImage.self) {
+                _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
+                    guard let image = object as? NSImage else { return }
+                    Task { @MainActor in
+                        self.addImageAttachment(image, fileName: "Pasted image")
+                    }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                _ = provider.loadObject(ofClass: URL.self) { fileURL, _ in
+                    guard let fileURL else { return }
+                    Task { @MainActor in
+                        self.addImageAttachment(fromFileURL: fileURL)
+                    }
+                }
+            }
+        }
+    }
 
     func removeAttachment(id: UUID) {
         attachments.removeAll { $0.id == id }
