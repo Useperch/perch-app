@@ -4,7 +4,7 @@
 //  guard (VisionGateDeicticGuard).
 //
 //  Compiled by scripts/check-vision-gate.sh together with the real product source
-//  (ClickyBackend/LLM/VisionGateDeicticGuard.swift), so it exercises the actual
+//  (notch/notch/PerchBackend/LLM/VisionGateDeicticGuard.swift), so it exercises the actual
 //  shipping logic — not a copy. This guard short-circuits the LLM classifier to
 //  ALWAYS capture the screen when the message points at on-screen content, which
 //  fixes the regression where "which of these movies are on netflix?" was routed

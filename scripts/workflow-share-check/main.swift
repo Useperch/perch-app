@@ -2,7 +2,7 @@
 //  workflow-share-check/main.swift
 //  Standalone, no-Xcode verification of the Repeat & Share follow-ups' pure
 //  core: schedule next-fire math, schedule-store JSON round-trips,
-//  clicky://import URL parsing, and imported-playbook persistence.
+//  perch://import URL parsing, and imported-playbook persistence.
 //
 //  Compiled by scripts/check-workflow-share.sh together with the REAL product
 //  sources (WorkflowScheduleModels / WorkflowScheduleStore /

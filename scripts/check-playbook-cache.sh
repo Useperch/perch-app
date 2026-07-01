@@ -38,5 +38,5 @@ swiftc -swift-version 5 -target arm64-apple-macos14.2 \
   -o "$BUILD_OUT"
 
 # Disable the shared debug log so fixture runs don't write noise into the real
-# app's ~/Library/Application Support/Clicky log.
+# app's ~/Library/Application Support/Perch log.
 CLICKY_WORKFLOW_DEBUG_LOG_DISABLED=1 "$BUILD_OUT"

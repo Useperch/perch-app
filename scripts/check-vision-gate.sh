@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # No-Xcode verification of the vision gate's deterministic deictic guard.
-# Compiles the REAL product source (ClickyBackend/LLM/VisionGateDeicticGuard.swift)
+# Compiles the REAL product source (notch/notch/PerchBackend/LLM/VisionGateDeicticGuard.swift)
 # together with scripts/vision-gate-check/main.swift and runs the checks.
 #
 # The guard forces a screen capture for messages that point at on-screen content
