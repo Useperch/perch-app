@@ -2,7 +2,7 @@
 //  workflow-share-check/main.swift
 //  Standalone, no-Xcode verification of the Repeat & Share follow-ups' pure
 //  core: schedule next-fire math, schedule-store JSON round-trips,
-//  clicky://import URL parsing, and imported-playbook persistence.
+//  perch://import URL parsing, and imported-playbook persistence.
 //
 //  Compiled by scripts/check-workflow-share.sh together with the REAL product
 //  sources (WorkflowScheduleModels / WorkflowScheduleStore /
@@ -132,7 +132,7 @@ do {
     check(storeAfterRemoval.schedules.isEmpty, "remove persists")
 }
 
-// MARK: - clicky://import URL parsing
+// MARK: - perch://import URL parsing
 
 print("share import URL parsing:")
 do {
@@ -142,14 +142,14 @@ do {
         return WorkflowShareImportURL.parseWorkflowShareId(fromImportURL: url)
     }
 
-    check(parsed("clicky://import/\(validShareId)") == validShareId, "accepts clicky://import/<id>")
-    check(parsed("CLICKY://IMPORT/\(validShareId)") == validShareId, "scheme and host are case-insensitive")
-    check(parsed("https://import/\(validShareId)") == nil, "rejects non-clicky scheme")
-    check(parsed("clicky://open/\(validShareId)") == nil, "rejects non-import host")
-    check(parsed("clicky://import/short") == nil, "rejects too-short id")
-    check(parsed("clicky://import/bad!chars#in$id%%here") == nil, "rejects invalid characters")
-    check(parsed("clicky://import/\(validShareId)/extra") == nil, "rejects extra path segments")
-    check(parsed("clicky://import/") == nil, "rejects empty id")
+    check(parsed("perch://import/\(validShareId)") == validShareId, "accepts perch://import/<id>")
+    check(parsed("PERCH://IMPORT/\(validShareId)") == validShareId, "scheme and host are case-insensitive")
+    check(parsed("https://import/\(validShareId)") == nil, "rejects non-perch scheme")
+    check(parsed("perch://open/\(validShareId)") == nil, "rejects non-import host")
+    check(parsed("perch://import/short") == nil, "rejects too-short id")
+    check(parsed("perch://import/bad!chars#in$id%%here") == nil, "rejects invalid characters")
+    check(parsed("perch://import/\(validShareId)/extra") == nil, "rejects extra path segments")
+    check(parsed("perch://import/") == nil, "rejects empty id")
 }
 
 // MARK: - Imported playbook persistence

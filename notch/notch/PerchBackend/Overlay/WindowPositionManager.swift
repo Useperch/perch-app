@@ -154,29 +154,26 @@ class WindowPositionManager {
     // post-onboarding relaunch. We surface it deliberately at startup right after
     // onboarding (a throwaway capture) so the user meets it in-context, primed by the
     // onboarding copy, instead of being ambushed on some later query.
-    private static let screenCaptureDirectAccessWarmupNeededUserDefaultsKey = "com.learningbuddy.screenCaptureDirectAccessWarmupNeeded"
     private static let didScreenCaptureDirectAccessWarmupUserDefaultsKey = "com.learningbuddy.didScreenCaptureDirectAccessWarmup"
 
-    /// Called at onboarding finish (when Screen Recording was requested) so the next
-    /// launch — the one where the grant is finally live — performs the warm-up capture.
-    static func noteScreenCaptureDirectAccessWarmupNeeded() {
-        UserDefaults.standard.set(true, forKey: screenCaptureDirectAccessWarmupNeededUserDefaultsKey)
-    }
-
-    /// True when a warm-up is pending, hasn't run yet, and the classic Screen Recording
-    /// grant is now live in this process (so the direct-access prompt can actually fire).
+    /// True the FIRST time the classic Screen Recording grant is live in this process
+    /// and the direct-access warm-up hasn't run yet — regardless of HOW the grant was
+    /// obtained (onboarding, System Settings, or a re-grant after a signing change).
+    ///
+    /// This warm-up used to also require a "needed" flag that only onboarding's
+    /// post-grant relaunch path set. Any user who enabled Screen Recording another way
+    /// (e.g. directly in System Settings) therefore never got the in-context warm-up,
+    /// and instead met macOS 15/26's separate "bypass the private window picker" consent
+    /// on their first real query. Keying purely off "grant is live and warm-up not done"
+    /// surfaces that consent at startup for every path into the grant.
     static func shouldRunScreenCaptureDirectAccessWarmup() -> Bool {
-        let defaults = UserDefaults.standard
-        let needed = defaults.bool(forKey: screenCaptureDirectAccessWarmupNeededUserDefaultsKey)
-        let alreadyDone = defaults.bool(forKey: didScreenCaptureDirectAccessWarmupUserDefaultsKey)
-        return needed && !alreadyDone && CGPreflightScreenCaptureAccess()
+        let alreadyDone = UserDefaults.standard.bool(forKey: didScreenCaptureDirectAccessWarmupUserDefaultsKey)
+        return !alreadyDone && CGPreflightScreenCaptureAccess()
     }
 
     /// Marks the direct-access warm-up as done so it runs at most once.
     static func markScreenCaptureDirectAccessWarmupDone() {
-        let defaults = UserDefaults.standard
-        defaults.set(true, forKey: didScreenCaptureDirectAccessWarmupUserDefaultsKey)
-        defaults.removeObject(forKey: screenCaptureDirectAccessWarmupNeededUserDefaultsKey)
+        UserDefaults.standard.set(true, forKey: didScreenCaptureDirectAccessWarmupUserDefaultsKey)
     }
 
     /// Prompts the system dialog for Screen Recording permission.
