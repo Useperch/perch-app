@@ -136,6 +136,11 @@ final class BrowserSubagentProcessSupervisor {
         if let installToken = PerchInstallIdentity.currentInstallToken() {
             environment["OPENROUTER_BASE_URL"] = "\(Self.workerBaseURL)/agent"
             environment["OPENROUTER_API_KEY"] = installToken
+            // Same credential swap for Exa web search: the sidecar POSTs to
+            // EXA_BASE_URL/search with EXA_API_KEY as x-api-key, so pointing it at
+            // the Worker keeps the real Exa key server-side (never in the binary).
+            environment["EXA_BASE_URL"] = "\(Self.workerBaseURL)/exa"
+            environment["EXA_API_KEY"] = installToken
         }
         process.environment = environment
 
