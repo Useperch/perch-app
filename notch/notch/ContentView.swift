@@ -349,7 +349,18 @@ struct ContentView: View {
             }
         }
         .padding(.bottom, 8)
-        .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
+        // Only let content grow past the normal notch window once the typed chat
+        // thread actually has messages — an empty composer stays at the base size and
+        // never grows on its own. With messages, content grows to intrinsic height
+        // (the notch window is resized to match in AppDelegate; the transcript caps
+        // itself to the screen).
+        .frame(
+            maxWidth: windowSize.width,
+            maxHeight: (textInput.isActive && !companionManager.typedChatMessages.isEmpty)
+                ? (NSScreen.main?.frame.height ?? 1200)
+                : windowSize.height,
+            alignment: .top
+        )
         .compositingGroup()
         .scaleEffect(
             x: gestureScale,

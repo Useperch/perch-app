@@ -159,6 +159,17 @@ final class CompanionManager: ObservableObject {
     /// Each entry is the user's transcript and Claude's response.
     private var conversationHistory: [(userTranscript: String, assistantResponse: String)] = []
 
+    /// The typed-chat thread the notch composer renders as message bubbles. This is
+    /// a UI-only projection, kept parallel to (not merged with) `conversationHistory`
+    /// — it holds full display text, per-message identity, a streaming flag, and
+    /// attachment thumbnails. Only typed turns write here; voice never does, so the
+    /// thread stays empty for spoken interactions.
+    @Published private(set) var typedChatMessages: [TypedChatMessage] = []
+
+    /// The id of the assistant bubble currently being streamed into, if any. Late
+    /// chunks from a cancelled response are ignored because their id no longer matches.
+    private var streamingAssistantMessageID: UUID?
+
     /// The currently running AI response task, if any. Cancelled when the user
     /// speaks again so a new response can begin immediately.
     private var currentResponseTask: Task<Void, Never>?
@@ -199,6 +210,22 @@ final class CompanionManager: ObservableObject {
             guard let spec = notification.userInfo?["spec"] as? String else { return }
             Task { @MainActor [weak self] in
                 await self?.handleDashboardComposeSubmit(spec: spec)
+            }
+        }
+
+        // When the typed composer closes (Escape / double-Control), the persistent
+        // chat thread resets: clear the bubbles and stop any in-flight reply so a
+        // reopened composer starts fresh.
+        textInputDismissObserver = NotificationCenter.default.addObserver(
+            forName: .perchTextInputDidDismiss,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentResponseTask?.cancel()
+                self.elevenLabsTTSClient.stopPlayback()
+                self.clearTypedChat()
             }
         }
     }
@@ -340,6 +367,7 @@ final class CompanionManager: ObservableObject {
     /// Observer for the on-board "+" compose submit, which dispatches a dashboard task
     /// to the same agent the voice `[DASHBOARD:…]` lane uses.
     private var dashboardComposeObserver: Any?
+    private var textInputDismissObserver: Any?
     private var accessibilityCheckTimer: Timer?
     private var pendingKeyboardShortcutStartTask: Task<Void, Never>?
     /// Scheduled hide for transient cursor mode — cancelled if the user
@@ -541,11 +569,12 @@ final class CompanionManager: ObservableObject {
         // well before the onboarding demo fires at ~40s into the video.
         _ = claudeAPI
 
-        // Right after the post-onboarding relaunch (when the Screen Recording grant is
-        // finally live), do ONE throwaway direct capture. This surfaces macOS 15/26's
-        // separate "bypass the private window picker" consent immediately and in-context
-        // — the onboarding copy primed the user for it — instead of ambushing them on a
-        // later query. Runs at most once; the result is discarded.
+        // On the first launch where the Screen Recording grant is live — however it was
+        // obtained (onboarding, System Settings, or a re-grant after a signing change) —
+        // do ONE throwaway direct capture. This surfaces macOS 15/26's separate "bypass
+        // the private window picker" consent immediately and in-context at startup,
+        // instead of ambushing the user on a later query. Runs at most once; the result
+        // is discarded.
         maybeRunScreenCaptureDirectAccessWarmup()
 
         // If the user already completed onboarding AND all permissions are
@@ -1265,6 +1294,19 @@ final class CompanionManager: ObservableObject {
         print("⌨️ Companion received typed message: \(effectiveTranscript) [\(attachments.count) attachment(s)]")
         PerchAnalytics.trackUserMessageSent(transcript: effectiveTranscript)
 
+        // If a previous reply is still streaming when the user fires a rapid
+        // follow-up, freeze it at its current partial text so the thread stays
+        // coherent before the new bubbles are appended.
+        if let stillStreaming = typedChatMessages.last, stillStreaming.isStreaming {
+            finalizeStreamingAssistant(finalText: stillStreaming.text)
+        }
+
+        // Render the exchange as bubbles: the user's message, then an empty
+        // streaming assistant bubble whose "thinking" dots cover the 0.25s delay
+        // plus the vision-gate and first-token latency.
+        appendTypedUserMessage(text: effectiveTranscript, thumbnails: attachments.map(\.thumbnail))
+        beginTypedAssistantStreamingMessage()
+
         // Give the panel a beat to disappear before the screenshot is captured
         // so it doesn't end up in the image Perch reasons about.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
@@ -1296,8 +1338,11 @@ final class CompanionManager: ObservableObject {
         activeRun = run
         PerchRunLog.append(run, .input, "\(inputKind) input: \(transcript)")
         currentResponseTask = Task {
-            // Stay in processing (spinner) state — no streaming text displayed
-            voiceState = .processing
+            // Voice turns show the processing spinner; typed turns stay idle (no orb,
+            // no media pause) — their feedback is the streaming bubble instead.
+            if inputKind != "typed" {
+                voiceState = .processing
+            }
 
             do {
                 // Pass conversation history so the model remembers prior exchanges.
@@ -1407,8 +1452,11 @@ final class CompanionManager: ObservableObject {
                         // Tags this turn as a billable "message" (voice or text) so it
                         // counts toward the free-tier cap at the Worker.
                         feature: "companion",
-                        onTextChunk: { _ in
-                            // No streaming text display — spinner stays until TTS plays
+                        onTextChunk: { [weak self] accumulated in
+                            // Stream into the typed-chat bubble for typed turns; voice
+                            // stays spinner-only until TTS plays.
+                            guard inputKind == "typed" else { return }
+                            self?.updateStreamingAssistant(accumulatedText: accumulated)
                         }
                     )
                     fullResponseText = responseText
@@ -1433,8 +1481,11 @@ final class CompanionManager: ObservableObject {
                         systemPrompt: textOnlySystemPrompt,
                         conversationHistory: historyForAPI,
                         userPrompt: transcript,
-                        onTextChunk: { _ in
-                            // No streaming text display — spinner stays until TTS plays
+                        onTextChunk: { [weak self] accumulated in
+                            // Stream into the typed-chat bubble for typed turns; voice
+                            // stays spinner-only until TTS plays.
+                            guard inputKind == "typed" else { return }
+                            self?.updateStreamingAssistant(accumulatedText: accumulated)
                         }
                     )
                     fullResponseText = responseText
@@ -1455,7 +1506,8 @@ final class CompanionManager: ObservableObject {
                     await handleBackgroundBrowserTask(
                         task: task,
                         spokenConfirmation: spokenConfirmation,
-                        transcript: transcript
+                        transcript: transcript,
+                        inputKind: inputKind
                     )
                     // The decision turn ends here; the autonomous run is captured
                     // separately by the subagent trace.
@@ -1466,13 +1518,14 @@ final class CompanionManager: ObservableObject {
                     await handleDashboardWidgetRequest(
                         spec: spec,
                         spokenConfirmation: spokenConfirmation,
-                        transcript: transcript
+                        transcript: transcript,
+                        inputKind: inputKind
                     )
                     PerchRunLog.endRun(run)
                     return
                 case .clarify(let question):
                     PerchRunLog.append(run, .plan, "intent gate → CLARIFY: \(question)")
-                    await handleClarifyQuestion(question: question, transcript: transcript)
+                    await handleClarifyQuestion(question: question, transcript: transcript, inputKind: inputKind)
                     PerchRunLog.endRun(run)
                     return
                 case .answer:
@@ -1537,8 +1590,13 @@ final class CompanionManager: ObservableObject {
                         y: appKitY + displayFrame.origin.y
                     )
 
-                    detectedElementScreenLocation = globalLocation
-                    detectedElementDisplayFrame = displayFrame
+                    // Typed turns are text-only — never fly the on-screen cursor.
+                    // (The coordinates are still computed/logged above; we just don't
+                    // hand them to the overlay.)
+                    if inputKind != "typed" {
+                        detectedElementScreenLocation = globalLocation
+                        detectedElementDisplayFrame = displayFrame
+                    }
                     PerchAnalytics.trackElementPointed(elementLabel: parseResult.elementLabel)
                     print("🎯 Element pointing: (\(Int(pointCoordinate.x)), \(Int(pointCoordinate.y))) → \"\(parseResult.elementLabel ?? "element")\"")
                     PerchRunLog.append(
@@ -1560,9 +1618,16 @@ final class CompanionManager: ObservableObject {
 
                 PerchAnalytics.trackAIResponseReceived(response: spokenText)
 
+                // Typed turns finish in text: land the clean (point-tag-stripped)
+                // reply in the bubble. Voice turns speak it aloud instead.
+                if inputKind == "typed" {
+                    finalizeStreamingAssistant(finalText: spokenText)
+                }
+
                 // Play the response via TTS. Keep the spinner (processing state)
                 // until the audio actually starts playing, then switch to responding.
-                await speakResponse(spokenText)
+                // Typed turns stay silent — the reply is shown, not spoken.
+                await speakResponse(spokenText, silent: inputKind == "typed")
             } catch is CancellationError {
                 // User spoke again — response was interrupted
             } catch let captureError as CompanionScreenCaptureError {
@@ -1571,11 +1636,18 @@ final class CompanionManager: ObservableObject {
                 // relaunch instead of letting macOS re-prompt on every turn.
                 PerchRunLog.append(run, .error, "screen capture blocked: \(captureError)")
                 print("⚠️ Screen capture blocked: \(captureError)")
+                if inputKind == "typed" {
+                    finalizeStreamingAssistant(finalText: "I couldn't see your screen. Try again.")
+                }
                 promptScreenRecordingRelaunchIfNeeded()
             } catch {
                 PerchAnalytics.trackResponseError(error: error.localizedDescription)
                 PerchRunLog.append(run, .error, "response pipeline error (screenshot/claude/tts): \(error)")
                 print("⚠️ Companion response error: \(error)")
+                // Never leave the "thinking" bubble spinning forever on an error.
+                if inputKind == "typed" {
+                    finalizeStreamingAssistant(finalText: "Something went wrong. Try again.")
+                }
                 displayCreditsErrorMessage()
             }
 
@@ -1597,7 +1669,8 @@ final class CompanionManager: ObservableObject {
     private func handleBackgroundBrowserTask(
         task: String,
         spokenConfirmation: String,
-        transcript: String
+        transcript: String,
+        inputKind: String
     ) async {
         // Hand the agent the current run's document so its asynchronous work —
         // lifecycle, executed AppleScript, completion — appends to THIS turn's doc
@@ -1609,7 +1682,11 @@ final class CompanionManager: ObservableObject {
         Task { await browserSubagentManager.startTask(task, runDocument: runForBackgroundTask) }
 
         recordExchange(userTranscript: transcript, assistantResponse: spokenConfirmation)
-        await speakResponse(spokenConfirmation)
+        // Typed turns land the confirmation in the bubble; voice speaks it.
+        if inputKind == "typed" {
+            finalizeStreamingAssistant(finalText: spokenConfirmation)
+        }
+        await speakResponse(spokenConfirmation, silent: inputKind == "typed")
 
         if !Task.isCancelled {
             voiceState = .idle
@@ -1625,7 +1702,8 @@ final class CompanionManager: ObservableObject {
     private func handleDashboardWidgetRequest(
         spec: String,
         spokenConfirmation: String,
-        transcript: String
+        transcript: String,
+        inputKind: String
     ) async {
         PerchRunLog.append(activeRun, .action, "dashboard request → sidecar: \(spec)")
         // Reveal the board so the user sees the new/edited widget land. REVEAL (not show)
@@ -1637,7 +1715,11 @@ final class CompanionManager: ObservableObject {
         Task { await browserSubagentManager.startTask(task, runDocument: runForDashboardTask) }
 
         recordExchange(userTranscript: transcript, assistantResponse: spokenConfirmation)
-        await speakResponse(spokenConfirmation)
+        // Typed turns land the confirmation in the bubble; voice speaks it.
+        if inputKind == "typed" {
+            finalizeStreamingAssistant(finalText: spokenConfirmation)
+        }
+        await speakResponse(spokenConfirmation, silent: inputKind == "typed")
 
         if !Task.isCancelled {
             voiceState = .idle
@@ -1664,9 +1746,14 @@ final class CompanionManager: ObservableObject {
     /// short question and waits for the user's answer. Nothing is done and nothing
     /// is pointed at — the user's reply re-enters the same pipeline with this
     /// question in conversation history for context.
-    private func handleClarifyQuestion(question: String, transcript: String) async {
+    private func handleClarifyQuestion(question: String, transcript: String, inputKind: String) async {
         recordExchange(userTranscript: transcript, assistantResponse: question)
-        await speakResponse(question)
+        // Typed turns land the question in the bubble; the user's next typed reply
+        // re-enters the pipeline with it in history. Voice speaks the question.
+        if inputKind == "typed" {
+            finalizeStreamingAssistant(finalText: question)
+        }
+        await speakResponse(question, silent: inputKind == "typed")
 
         if !Task.isCancelled {
             voiceState = .idle
@@ -1686,15 +1773,83 @@ final class CompanionManager: ObservableObject {
         }
     }
 
+    // MARK: - Typed-chat thread (UI-only bubbles)
+
+    /// Append the user's typed message as a right-aligned bubble.
+    func appendTypedUserMessage(text: String, thumbnails: [NSImage]) {
+        let userMessage = TypedChatMessage(
+            role: .user,
+            text: text,
+            isStreaming: false,
+            attachmentThumbnails: thumbnails
+        )
+        typedChatMessages = typedChatMessages + [userMessage]
+    }
+
+    /// Append an empty, streaming assistant bubble and remember its id so the
+    /// streamed tokens know which bubble to fill. Shows the "thinking" dots until
+    /// the first token arrives.
+    func beginTypedAssistantStreamingMessage() {
+        let assistantMessage = TypedChatMessage(
+            role: .assistant,
+            text: "",
+            isStreaming: true,
+            attachmentThumbnails: []
+        )
+        streamingAssistantMessageID = assistantMessage.id
+        typedChatMessages = typedChatMessages + [assistantMessage]
+    }
+
+    /// Replace the streaming assistant bubble's text with the latest accumulated
+    /// reply. No-op if there is no active streaming bubble (e.g. a late chunk from a
+    /// response the user already superseded), so a stale token can't clobber a newer
+    /// bubble.
+    func updateStreamingAssistant(accumulatedText: String) {
+        guard let streamingID = streamingAssistantMessageID else { return }
+        typedChatMessages = typedChatMessages.map { message in
+            guard message.id == streamingID else { return message }
+            var updated = message
+            updated.text = accumulatedText
+            return updated
+        }
+    }
+
+    /// Finish the streaming assistant bubble: set its final text and stop streaming.
+    /// No-op if there is no active streaming bubble.
+    func finalizeStreamingAssistant(finalText: String) {
+        guard let streamingID = streamingAssistantMessageID else { return }
+        typedChatMessages = typedChatMessages.map { message in
+            guard message.id == streamingID else { return message }
+            var updated = message
+            updated.text = finalText
+            updated.isStreaming = false
+            return updated
+        }
+        streamingAssistantMessageID = nil
+    }
+
+    /// Clear the whole typed-chat thread (on composer dismiss). Leaves
+    /// `conversationHistory` alone so the model keeps its short-term memory.
+    func clearTypedChat() {
+        typedChatMessages = []
+        streamingAssistantMessageID = nil
+    }
+
     /// Speaks a reply via ElevenLabs TTS, keeping the spinner (processing state)
     /// up until audio actually starts playing, then switching to responding.
     /// Empty text is a no-op; a TTS failure falls back to the credits-error text.
-    private func speakResponse(_ spokenText: String) async {
+    ///
+    /// When `silent` is true (typed turns), the reply is shown in a bubble rather
+    /// than spoken: the speak-trace is still recorded, but no audio plays and the
+    /// voice state is left untouched.
+    private func speakResponse(_ spokenText: String, silent: Bool = false) async {
         let trimmedText = spokenText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else { return }
-        // The verbatim words Perch speaks aloud — the "whenever something is
-        // said" trace, captured before the audio plays.
+        // The verbatim words Perch would say — the "whenever something is said"
+        // trace, captured whether or not it is actually spoken aloud.
         PerchRunLog.append(activeRun, .speak, trimmedText)
+        // Typed turns are text-only: skip audio and the responding transition.
+        guard !silent else { return }
         do {
             try await elevenLabsTTSClient.speakText(trimmedText)
             // speakText returns after player.play() — audio is now playing

@@ -49,6 +49,11 @@ final class NotchTextInputController: ObservableObject {
     /// Image attachments staged for the next send, in the order they were added.
     @Published private(set) var attachments: [NotchTextInputAttachment] = []
 
+    /// The composer's current rendered content height, reported by the composer view
+    /// as its bubbles/attachments/input grow. The AppDelegate resizes the notch
+    /// window to match so the notch grows to fit the chat thread. 0 when closed.
+    @Published var measuredComposerContentHeight: CGFloat = 0
+
     /// Cap so a runaway paste/drop can't stage an unbounded number of images.
     private let maximumAttachmentCount = 6
 
@@ -75,12 +80,22 @@ final class NotchTextInputController: ObservableObject {
         NotificationCenter.default.post(name: .perchShowTextInput, object: nil)
     }
 
+    /// Clear the draft + attachments after a send WITHOUT closing the composer, so
+    /// the persistent chat thread stays open for follow-ups. Deliberately does not
+    /// flip `isActive` or post `.perchTextInputDidDismiss`, so the notch window keeps
+    /// its keyboard focus (`acceptsKeyInput`) between messages.
+    func clearDraftAfterSend() {
+        draftText = ""
+        attachments = []
+    }
+
     /// Close the composer and clear the draft. Safe to call when already closed.
     func dismiss() {
         guard isActive else { return }
         isActive = false
         draftText = ""
         attachments = []
+        measuredComposerContentHeight = 0
         NotificationCenter.default.post(name: .perchTextInputDidDismiss, object: nil)
     }
 

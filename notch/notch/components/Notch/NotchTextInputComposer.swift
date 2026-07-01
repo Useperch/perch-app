@@ -44,10 +44,20 @@ struct NotchTextInputComposer: View {
         vm.effectiveClosedNotchHeight + 8
     }
 
+    /// Constant gap between the input row and the bottom edge of the notch, kept the
+    /// same no matter how tall the chat thread grows.
+    private let bottomGap: CGFloat = 14
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Clear the physical notch at the top of the surface.
             Color.clear.frame(height: topNotchClearance)
+
+            // The persistent chat thread grows the surface upward as the
+            // conversation fills in; empty threads take no space.
+            if !companionManager.typedChatMessages.isEmpty {
+                NotchChatTranscriptView()
+            }
 
             if !controller.attachments.isEmpty {
                 attachmentThumbnailRow
@@ -56,8 +66,23 @@ struct NotchTextInputComposer: View {
             inputRow
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 14)
+        // Fixed breathing room between the input row and the bottom edge of the
+        // notch, kept constant however tall the thread grows.
+        .padding(.bottom, bottomGap)
         .frame(width: composerWidth)
+        // Report the composer's rendered height so the AppDelegate can size the
+        // notch window to fit exactly this content.
+        .background(
+            GeometryReader { geometry in
+                Color.clear.preference(
+                    key: ComposerContentHeightPreferenceKey.self,
+                    value: geometry.size.height
+                )
+            }
+        )
+        .onPreferenceChange(ComposerContentHeightPreferenceKey.self) { measuredHeight in
+            controller.measuredComposerContentHeight = measuredHeight
+        }
         .overlay {
             // A subtle highlight while an image is being dragged over the composer.
             if isDropTargeted {
@@ -180,7 +205,11 @@ struct NotchTextInputComposer: View {
         let text = controller.draftText
         let attachments = controller.attachments
         companionManager.sendTypedMessage(text, attachments: attachments)
-        controller.dismiss()
+        // Keep the composer open as a persistent chat thread: clear the draft but
+        // stay active and keyboard-focused so the user can read the reply and type
+        // a follow-up. Escape / double-Control still fully dismiss.
+        controller.clearDraftAfterSend()
+        focusTextFieldSoon()
     }
 
     /// Open a standard file picker filtered to images.
@@ -226,6 +255,15 @@ struct NotchTextInputComposer: View {
     private func focusTextFieldSoon() {
         isTextFieldFocused = true
         DispatchQueue.main.async { isTextFieldFocused = true }
+    }
+}
+
+/// Carries the composer's rendered content height up to `onPreferenceChange`, which
+/// forwards it to the controller so the AppDelegate can size the notch window to fit.
+private struct ComposerContentHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 

@@ -63,6 +63,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowScreenDidChangeObserver: Any?
     private var dragDetectors: [String: DragDetector] = [:] // UUID -> DragDetector
 
+    /// While the typed composer is open, drives the notch window's height from the
+    /// composer's measured content height so the notch grows/shrinks to fit the chat
+    /// thread. Cancelled when the composer closes.
+    private var typedChatHeightCancellable: AnyCancellable?
+    /// While the typed composer is open, a global mouse monitor that dismisses it
+    /// when the user clicks anywhere outside the notch. Removed on dismiss.
+    private var clickOutsideToDismissMonitor: Any?
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
@@ -312,6 +320,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // notch panel can become the key window that receives input.
         NSApp.activate(ignoringOtherApps: true)
         activeNotchWindow()?.makeKeyAndOrderFront(nil)
+
+        // Grow the notch to fit the chat thread: track the composer's measured
+        // content height so the window is always exactly as tall as the content
+        // needs (up to the screen), and dismiss when the user clicks outside.
+        beginTypedChatWindowSizing()
+        installClickOutsideToDismissMonitor()
     }
 
     /// Relinquish keyboard focus once the composer closes: the notch goes back to
@@ -324,6 +338,105 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             skyLightWindow.resignKey()
         }
         NSApp.deactivate()
+
+        // Stop tracking content height and clicks, then shrink the notch window back
+        // to its normal height now that the chat thread is gone.
+        typedChatHeightCancellable?.cancel()
+        typedChatHeightCancellable = nil
+        removeClickOutsideToDismissMonitor()
+        resizeNotchWindows(toHeight: windowSize.height, animated: true)
+    }
+
+    /// Subscribe to the composer's measured content height and keep the notch window
+    /// sized to it (plus the shadow allowance), clamped so it never collapses below
+    /// the input bar or grows past the usable screen. The visible black notch fill is
+    /// already intrinsic-height, so the window resizing in lockstep makes the notch
+    /// appear to grow smoothly with each message.
+    @MainActor
+    private func beginTypedChatWindowSizing() {
+        typedChatHeightCancellable?.cancel()
+        // Apply the current height immediately, then on every change.
+        applyTypedChatContentHeight(NotchTextInputController.shared.measuredComposerContentHeight)
+        typedChatHeightCancellable = NotchTextInputController.shared
+            .$measuredComposerContentHeight
+            .removeDuplicates()
+            .sink { [weak self] contentHeight in
+                // The controller is @MainActor and mutated on the main thread, so this
+                // fires on main during the SwiftUI update — apply synchronously so the
+                // window tracks the content's animation frame-for-frame (a Task hop
+                // would defer to the next runloop and visibly lag the growth).
+                MainActor.assumeIsolated {
+                    self?.applyTypedChatContentHeight(contentHeight)
+                }
+            }
+    }
+
+    /// Resize the notch window(s) to fit `contentHeight` of composer content.
+    @MainActor
+    private func applyTypedChatContentHeight(_ contentHeight: CGFloat) {
+        guard NotchTextInputController.shared.isActive else { return }
+
+        // The notch only grows once the chat thread has messages — an empty composer
+        // (just the input bar) stays at the normal notch size and never grows on its
+        // own. The bar itself is drawn by the intrinsic-height black fill within this
+        // base window.
+        guard !companionManager.typedChatMessages.isEmpty, contentHeight > 0 else {
+            resizeNotchWindows(toHeight: windowSize.height, animated: false)
+            return
+        }
+
+        // With messages present, the window fits the content (plus the shadow
+        // allowance), clamped so a long thread never runs off the screen (it scrolls
+        // internally past this point).
+        let minimumWindowHeight = windowSize.height
+        let usableScreenHeight = (activeNotchWindow()?.screen ?? NSScreen.main)?.visibleFrame.height ?? 900
+        let maximumWindowHeight = usableScreenHeight - 40
+        let targetWindowHeight = min(
+            max(contentHeight + shadowPadding, minimumWindowHeight),
+            maximumWindowHeight
+        )
+        // Track content instantly (no window animation) — the black fill animates
+        // its own growth in SwiftUI, and the window follows in lockstep so nothing
+        // clips and the growth reads as one smooth motion.
+        resizeNotchWindows(toHeight: targetWindowHeight, animated: false)
+    }
+
+    /// Dismiss the typed composer when the user clicks anywhere outside the notch.
+    /// A global monitor only sees clicks destined for OTHER apps, which is exactly
+    /// "clicked away from Perch" — clicks inside the notch never reach it.
+    @MainActor
+    private func installClickOutsideToDismissMonitor() {
+        removeClickOutsideToDismissMonitor()
+        clickOutsideToDismissMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { _ in
+            Task { @MainActor in
+                NotchTextInputController.shared.dismiss()
+            }
+        }
+    }
+
+    @MainActor
+    private func removeClickOutsideToDismissMonitor() {
+        if let monitor = clickOutsideToDismissMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickOutsideToDismissMonitor = nil
+        }
+    }
+
+    /// Resize every notch panel to `targetHeight`, keeping its top edge pinned to
+    /// the top of the screen so it grows/shrinks downward (matching how the notch is
+    /// anchored).
+    @MainActor
+    private func resizeNotchWindows(toHeight targetHeight: CGFloat, animated: Bool) {
+        for window in allNotchWindows() {
+            guard abs(window.frame.height - targetHeight) > 0.5 else { continue }
+            var newFrame = window.frame
+            let topEdgeY = newFrame.origin.y + newFrame.size.height
+            newFrame.size.height = targetHeight
+            newFrame.origin.y = topEdgeY - targetHeight
+            window.setFrame(newFrame, display: true, animate: animated)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -679,11 +792,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         // only honors it on the next launch. Relaunch once now so their
                         // first prompt captures the screen silently, instead of hitting
                         // the relaunch card (or the raw system prompt) on first use.
-                        // Also queue the direct-capture warm-up so the second macOS
-                        // consent ("bypass the private window picker") is surfaced right
-                        // after the relaunch, in-context, rather than on a later query.
+                        // After the relaunch the Screen Recording grant is live, so the
+                        // startup warm-up capture fires macOS 15/26's second consent
+                        // ("bypass the private window picker") in-context on its own —
+                        // it no longer needs to be queued from here.
                         if WindowPositionManager.shouldRelaunchAfterOnboardingToActivateScreenRecording() {
-                            WindowPositionManager.noteScreenCaptureDirectAccessWarmupNeeded()
                             WindowPositionManager.markPostOnboardingScreenRecordingRelaunchConsumed()
                             ApplicationRelauncher.restart()
                             return
