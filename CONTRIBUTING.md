@@ -19,9 +19,8 @@ Practical consequences:
 
 ## Where things go
 
-- App source: `notch/notch/` — the SwiftUI front-end plus `PerchBackend/` (voice pipeline,
+- App source: `perch/notch/` — the SwiftUI front-end plus `PerchBackend/` (voice pipeline,
   orchestration, identity, dashboard, workflows).
-- No-Xcode CLI checks: `scripts/check-*.sh` compile `PerchBackend/` source directly.
 
 ## Conventions
 
