@@ -33,3 +33,8 @@ Practical consequences:
 - Branch as `feature/<desc>` or `fix/<desc>`.
 - Commit messages: imperative mood, explain the "why".
 - Keep changes scoped to what you describe in the PR.
+
+## Releases
+
+Maintainers only — see [RELEASING.md](RELEASING.md) for the full flow (version bump,
+packaging, Sparkle signing, publishing).
