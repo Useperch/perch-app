@@ -16,7 +16,7 @@ set -euo pipefail
 # dlopen()s the real code, so macOS TCC attributes Accessibility / Screen
 # Recording to the bare stub and the push-to-talk hotkeys silently die. Release
 # is one self-contained executable, so TCC resolves to the bundle correctly.
-# Distinct identity ("Perch Dev" / app.perch.notch.dev) + stable "Clicky Self
+# Distinct identity ("Perch Dev" / app.perch.notch.dev) + stable "Perch Self
 # Signed" cert make the grants bind and persist across rebuilds.
 #
 # Grant Accessibility / Microphone / Screen Recording to "Perch Dev" ONCE after
@@ -26,8 +26,11 @@ set -euo pipefail
 # =============================================================================
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SIGN_IDENTITY="Clicky Self Signed"
-KEYCHAIN="$HOME/Library/Keychains/clickydev.keychain-db"
+SIGN_IDENTITY="Perch Self Signed"
+KEYCHAIN="$HOME/Library/Keychains/perchdev.keychain-db"
+# Password for the dedicated signing keychain (set by setup-signing-identity.sh).
+# Override with PERCH_SIGN_KEYCHAIN_PASSWORD to match a non-default setup.
+KEYCHAIN_PW="${PERCH_SIGN_KEYCHAIN_PASSWORD:-perch}"
 PROJECT="$REPO_DIR/perch/notch.xcodeproj"
 SCHEME="notch"
 ENTITLEMENTS="$REPO_DIR/perch/notch/notch.entitlements"
@@ -43,7 +46,7 @@ if ! security find-certificate -c "${SIGN_IDENTITY}" >/dev/null 2>&1; then
     echo "   Run scripts/setup-signing-identity.sh first, or TCC grants will reset."
     exit 1
 fi
-security unlock-keychain -p clicky "${KEYCHAIN}" 2>/dev/null || true
+security unlock-keychain -p "${KEYCHAIN_PW}" "${KEYCHAIN}" 2>/dev/null || true
 
 echo "▶︎ Building Perch Dev (xcodebuild, RELEASE — no debug stub)…"
 xcodebuild build -project "${PROJECT}" -scheme "${SCHEME}" -configuration Release \
