@@ -11,14 +11,14 @@ surrounding UI (the media controllers, live-activity HUDs, shelf, onboarding, an
 many view/extension/helper files) are derived from boring.notch.
 
 The derived files live throughout the app source under
-[`notch/notch/`](./notch/notch/) — for example the notch UI under
-[`notch/notch/components/Notch/`](./notch/notch/components/Notch/), the media
-controllers under `notch/notch/MediaControllers/`, and the shared views,
-extensions, and helpers under `notch/notch/components/`, `notch/notch/extensions/`,
-and `notch/notch/helpers/`. Each such file retains its upstream authorship header
+[`perch/notch/`](./perch/notch/) — for example the notch UI under
+[`perch/notch/components/Notch/`](./perch/notch/components/Notch/), the media
+controllers under `perch/notch/MediaControllers/`, and the shared views,
+extensions, and helpers under `perch/notch/components/`, `perch/notch/extensions/`,
+and `perch/notch/helpers/`. Each such file retains its upstream authorship header
 (e.g. "Created by Alexander …", the boring.notch maintainers).
 
-The notch shape itself (`notch/notch/components/Notch/NotchShape.swift`)
+The notch shape itself (`perch/notch/components/Notch/NotchShape.swift`)
 originates from **[MrKai77/DynamicNotchKit](https://github.com/MrKai77/DynamicNotchKit)**,
 via boring.notch, and retains that attribution in its header.
 

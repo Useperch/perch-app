@@ -20,10 +20,10 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SIGN_IDENTITY="Perch Self Signed"
 KEYCHAIN="$HOME/Library/Keychains/perchdev.keychain-db"
-PROJECT="$REPO_DIR/notch/notch.xcodeproj"
+PROJECT="$REPO_DIR/perch/notch.xcodeproj"
 SCHEME="notch"
-ENTITLEMENTS="$REPO_DIR/notch/notch/notch.entitlements"
-DERIVED_DATA="$REPO_DIR/notch/build/DerivedData"
+ENTITLEMENTS="$REPO_DIR/perch/notch/notch.entitlements"
+DERIVED_DATA="$REPO_DIR/perch/build/DerivedData"
 APP="$DERIVED_DATA/Build/Products/Debug/Perch.app"
 
 # ── Sanity: stable signing identity present ─────────────────────────────────
