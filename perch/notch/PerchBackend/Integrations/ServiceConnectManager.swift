@@ -37,6 +37,12 @@ final class ServiceConnectManager: ServiceConnecting {
     /// File the connect process's stdout + stderr are redirected to.
     private static let connectLogPath = PerchSupportPaths.file("connect.log").path
 
+    /// The Worker gateway base URL (same Info.plist key the sidecar supervisor
+    /// uses). The connect flow's Composio calls route through `<base>/composio`
+    /// so the real Composio project key never ships on the user's machine.
+    private static let workerBaseURL = AppBundleConfiguration.stringValue(forKey: "WorkerBaseURL")
+        ?? "https://your-worker-name.your-subdomain.workers.dev"
+
     private let manifestReader: ComposioManifestReader
 
     private var connectProcess: Process?
@@ -98,6 +104,21 @@ final class ServiceConnectManager: ServiceConnecting {
         let quotedSlug = Self.shellQuote(slug)
         let command = "cd \(quotedDirectory) && ./run.sh --connect \(quotedSlug)"
         process.arguments = ["-lc", command]
+
+        // Same Composio credential swap as the sidecar launch (see
+        // BrowserSubagentProcessSupervisor): the OAuth connect must run against
+        // THIS install's own Composio entity via the Worker proxy, or the new
+        // connection would land in a shared entity visible to other users. Only
+        // injected when the install is registered; otherwise the connect flow
+        // falls back to the local .env (developer running their own key).
+        var environment = ProcessInfo.processInfo.environment
+        if let installToken = PerchInstallIdentity.currentInstallToken(),
+           let installId = PerchInstallIdentity.currentInstallId() {
+            environment["COMPOSIO_BASE_URL"] = "\(Self.workerBaseURL)/composio"
+            environment["COMPOSIO_API_KEY"] = installToken
+            environment["COMPOSIO_USER_ID"] = installId
+        }
+        process.environment = environment
 
         if let logHandle = Self.connectLogFileHandle() {
             process.standardOutput = logHandle

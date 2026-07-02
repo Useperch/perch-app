@@ -61,6 +61,7 @@ final class PerchInstallIdentity: ObservableObject {
         isRegistered = persisted.installToken != nil
         entitlement = persisted.entitlement ?? .free
         Self.cacheInstallToken(persisted.installToken)
+        Self.cacheInstallId(persisted.installId)
         Self.cacheServerTracingEnabled(persisted.tracingEnabled)
     }
 
@@ -81,6 +82,28 @@ final class PerchInstallIdentity: ObservableObject {
         tokenLock.lock()
         cachedInstallToken = token
         tokenLock.unlock()
+    }
+
+    // MARK: - Cross-actor install-id accessor
+
+    private static let installIdLock = NSLock()
+    nonisolated(unsafe) private static var cachedInstallId: String?
+
+    /// The stable per-install UUID, readable from any actor. The sidecar spawn
+    /// paths inject it as the Composio user id (COMPOSIO_USER_ID) so each
+    /// install's connected accounts live under their own Composio entity.
+    /// Unlike the token it is minted in init and never changes, so the cache is
+    /// written once. nil only if read before the singleton initializes.
+    nonisolated static func currentInstallId() -> String? {
+        installIdLock.lock()
+        defer { installIdLock.unlock() }
+        return cachedInstallId
+    }
+
+    private static func cacheInstallId(_ id: String) {
+        installIdLock.lock()
+        cachedInstallId = id
+        installIdLock.unlock()
     }
 
     private static let serverTracingLock = NSLock()

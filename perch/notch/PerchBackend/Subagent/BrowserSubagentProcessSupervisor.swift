@@ -156,6 +156,17 @@ final class BrowserSubagentProcessSupervisor {
             // the Worker keeps the real Exa key server-side (never in the binary).
             environment["EXA_BASE_URL"] = "\(Self.workerBaseURL)/exa"
             environment["EXA_API_KEY"] = installToken
+
+            // Composio rides the same credential swap: the Worker holds the real
+            // project key and pins every call to this install's own Composio
+            // entity, so COMPOSIO_USER_ID must be the install id — a shared or
+            // default entity would commingle users' connected accounts (the
+            // sidecar refuses to enable Composio in that case, see config.py).
+            if let installId = PerchInstallIdentity.currentInstallId() {
+                environment["COMPOSIO_BASE_URL"] = "\(Self.workerBaseURL)/composio"
+                environment["COMPOSIO_API_KEY"] = installToken
+                environment["COMPOSIO_USER_ID"] = installId
+            }
         }
 
         // When the sidecar runs from the read-only, code-signed app bundle (the

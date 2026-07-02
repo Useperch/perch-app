@@ -12,7 +12,15 @@ import EventKit
 @MainActor
 final class NotchAlertIngestionService {
 
-    private static let pollIntervalSeconds: TimeInterval = 180
+    // 1 hour, deliberately conservative: each poll with Gmail + Calendar
+    // connected costs 2 Composio tool calls, and the Composio free tier is
+    // 20,000 calls/month ACROSS ALL USERS (the project key is shared, held by
+    // the Worker). At the original 180s this was ~19k calls/month per connected
+    // user — a single user exhausted the whole tier. At 1 hour it is ~1k/month
+    // per connected user, so ~20 connected users fit the free tier. Urgent
+    // meeting alerts are unaffected: they come from local EventKit
+    // (nativeEventKitCandidates), not Composio.
+    private static let pollIntervalSeconds: TimeInterval = 3600
     /// Hard cap for calendar/eventkit candidates — only near-term starts are notch-worthy.
     private static let maxCalendarAlertLeadMinutes = 20
     private static let upcomingEventWindowMinutes = maxCalendarAlertLeadMinutes
