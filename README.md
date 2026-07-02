@@ -1,6 +1,6 @@
 # Welcome to Perch!
 
-![Perch demo](brand/perch-demo.gif)
+<p align="center"><img src="brand/perch-demo.gif" alt="Perch demo"></p>
 
 Perch is a little buddy that lives in your MacBook notch and helps you whenever you need it.
 
