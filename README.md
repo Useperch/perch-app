@@ -1,5 +1,7 @@
 # Welcome to Perch!
 
+![Perch demo](brand/perch-demo.gif)
+
 Perch is a little buddy that lives in your MacBook notch and helps you whenever you need it.
 
 It sees your screen, talks back, and can go do things for you — right there at the top
