@@ -92,18 +92,18 @@ enum MusicPlayerImageSizes {
 /// Reads developer-only environment overrides for the closed-notch geometry, so
 /// different notch sizes (and the no-notch case) can be tested on one machine:
 ///
-///   CLICKY_SIM_NO_NOTCH=1       → simulate a display without a notch: a top-center
+///   PERCH_SIM_NO_NOTCH=1       → simulate a display without a notch: a top-center
 ///                                 pill sized to the real menu-bar height.
-///   CLICKY_SIM_NOTCH_WIDTH=160  → force the closed-notch width (points).
-///   CLICKY_SIM_NOTCH_HEIGHT=38  → force the closed-notch height (points).
+///   PERCH_SIM_NOTCH_WIDTH=160  → force the closed-notch width (points).
+///   PERCH_SIM_NOTCH_HEIGHT=38  → force the closed-notch height (points).
 ///
 /// Returns nil when no override is set, so the normal screen-derived path runs.
 @MainActor private func simulatedNotchSizeOverride(realScreen: NSScreen?) -> CGSize? {
     let environment = ProcessInfo.processInfo.environment
 
-    let simulateNoNotch = environment["CLICKY_SIM_NO_NOTCH"] == "1"
-    let widthOverride = environment["CLICKY_SIM_NOTCH_WIDTH"].flatMap { Double($0) }.map { CGFloat($0) }
-    let heightOverride = environment["CLICKY_SIM_NOTCH_HEIGHT"].flatMap { Double($0) }.map { CGFloat($0) }
+    let simulateNoNotch = environment["PERCH_SIM_NO_NOTCH"] == "1"
+    let widthOverride = environment["PERCH_SIM_NOTCH_WIDTH"].flatMap { Double($0) }.map { CGFloat($0) }
+    let heightOverride = environment["PERCH_SIM_NOTCH_HEIGHT"].flatMap { Double($0) }.map { CGFloat($0) }
 
     guard simulateNoNotch || widthOverride != nil || heightOverride != nil else {
         return nil

@@ -1,6 +1,6 @@
 //
 //  DashboardSettingsSidebar.swift
-//  leanring-buddy
+//  Perch
 //
 //  The settings sidebar: three buttons — Visuals, Accessibility, Permissions.
 //  Selecting one drives the detail pane. (The Dashboard/Perch split lives in the

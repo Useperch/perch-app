@@ -4,7 +4,7 @@
 # and imported-playbook persistence. Compiles the REAL product sources
 # together with scripts/workflow-share-check/main.swift and runs the checks.
 #
-# The canonical tests live in leanring-buddyTests/ (run via Xcode ⌘U); this is
+# The canonical tests live in PerchTests/ (run via Xcode ⌘U); this is
 # the Command-Line-Tools-only mirror. Usage: ./scripts/check-workflow-share.sh
 set -euo pipefail
 
@@ -27,4 +27,4 @@ swiftc -swift-version 5 -target arm64-apple-macos14.2 \
 
 # Disable the shared debug log so fixture runs don't write noise into the real
 # app's ~/Library/Application Support/Perch log.
-CLICKY_WORKFLOW_DEBUG_LOG_DISABLED=1 "$BUILD_OUT"
+PERCH_WORKFLOW_DEBUG_LOG_DISABLED=1 "$BUILD_OUT"

@@ -1,6 +1,6 @@
 //
 //  AccessibilityElementProbe.swift
-//  leanring-buddy
+//  Perch
 //
 //  The "blind" half of the capture layer's grounding: best-effort lookups of
 //  the accessibility role/label of the element under the cursor (for clicks) or

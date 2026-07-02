@@ -1,6 +1,6 @@
 //
 //  CompanionManager+Onboarding.swift
-//  leanring-buddy
+//  Perch
 //
 //  Onboarding video playback + scripted demo interaction.
 //  Extracted from CompanionManager.swift to keep that file focused;

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # =============================================================================
 # build-perch.sh — Build the notch app (Perch) via xcodebuild, then RE-SIGN it
-# with the stable "Clicky Self Signed" identity and relaunch.
+# with the stable "Perch Self Signed" identity and relaunch.
 #
 # WHY: xcodebuild / Xcode "Run" signs ad-hoc ("Sign to Run Locally"), which gives
 # a new cdhash every build -> macOS TCC drops Accessibility/Screen Recording/Mic
@@ -18,8 +18,8 @@ set -euo pipefail
 # =============================================================================
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SIGN_IDENTITY="Clicky Self Signed"
-KEYCHAIN="$HOME/Library/Keychains/clickydev.keychain-db"
+SIGN_IDENTITY="Perch Self Signed"
+KEYCHAIN="$HOME/Library/Keychains/perchdev.keychain-db"
 PROJECT="$REPO_DIR/notch/notch.xcodeproj"
 SCHEME="notch"
 ENTITLEMENTS="$REPO_DIR/notch/notch/notch.entitlements"
@@ -32,7 +32,7 @@ if ! security find-certificate -c "${SIGN_IDENTITY}" >/dev/null 2>&1; then
     echo "   Run scripts/setup-signing-identity.sh first, or TCC grants will reset."
     exit 1
 fi
-security unlock-keychain -p clicky "${KEYCHAIN}" 2>/dev/null || true
+security unlock-keychain -p "${PERCH_SIGN_KEYCHAIN_PASSWORD:-perch}" "${KEYCHAIN}" 2>/dev/null || true
 
 echo "▶︎ Building Perch (xcodebuild, ad-hoc)…"
 xcodebuild build -project "${PROJECT}" -scheme "${SCHEME}" -configuration Debug \

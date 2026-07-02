@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetComposeView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The body shown by a freshly-added widget (source `.draft`) before it knows what to
 //  show: a card with a textbox inside it. The user describes what they want ("most

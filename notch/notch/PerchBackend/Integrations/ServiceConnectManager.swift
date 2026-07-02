@@ -1,6 +1,6 @@
 //
 //  ServiceConnectManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Runs the actual "connect" side effect when the user accepts a connect offer,
 //  and reports the outcome back to the coordinator.

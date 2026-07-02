@@ -1,6 +1,6 @@
 //
 //  AssemblyAIStreamingTranscriptionProvider.swift
-//  leanring-buddy
+//  Perch
 //
 //  Streaming AI transcription provider backed by AssemblyAI's websocket API.
 //
@@ -44,7 +44,7 @@ final class AssemblyAIStreamingTranscriptionProvider: BuddyTranscriptionProvider
     ) async throws -> any BuddyStreamingTranscriptionSession {
         // Fetch a fresh temporary token from the proxy before each session
         let temporaryToken = try await fetchTemporaryToken()
-        print("🎙️ AssemblyAI: fetched temporary token (\(temporaryToken.prefix(20))...)")
+        print("🎙️ AssemblyAI: fetched temporary streaming token")
 
         let session = AssemblyAIStreamingTranscriptionSession(
             apiKey: nil,
@@ -128,8 +128,8 @@ private final class AssemblyAIStreamingTranscriptionSession: NSObject, BuddyStre
     private let onFinalTranscriptReady: (String) -> Void
     private let onError: (Error) -> Void
 
-    private let stateQueue = DispatchQueue(label: "com.learningbuddy.assemblyai.state")
-    private let sendQueue = DispatchQueue(label: "com.learningbuddy.assemblyai.send")
+    private let stateQueue = DispatchQueue(label: "app.perch.assemblyai.state")
+    private let sendQueue = DispatchQueue(label: "app.perch.assemblyai.send")
     private let audioPCM16Converter = BuddyPCM16AudioConverter(targetSampleRate: targetSampleRate)
     private let urlSession: URLSession
 

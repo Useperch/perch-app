@@ -1,6 +1,6 @@
 {
   "name": "Perch Onboarding Builder",
-  "id": "clicky-onboarding-builder",
+  "id": "perch-onboarding-builder",
   "api": "1.0.0",
   "main": "code.js",
   "editorType": ["figma"],

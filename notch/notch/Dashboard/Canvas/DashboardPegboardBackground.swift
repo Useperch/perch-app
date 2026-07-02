@@ -1,6 +1,6 @@
 //
 //  DashboardPegboardBackground.swift
-//  leanring-buddy
+//  Perch
 //
 //  The pegboard: a field of faint dots that the widgets snap to. It draws only the
 //  dots inside the current viewport (computed by inverting the canvas transform), so

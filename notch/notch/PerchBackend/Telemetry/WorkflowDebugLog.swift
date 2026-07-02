@@ -1,17 +1,15 @@
 //
 //  WorkflowDebugLog.swift
-//  leanring-buddy
+//  Perch
 //
-//  TEMPORARY demo-time diagnostic. Appends one line per captured workflow event
-//  (and per fired offer) to
-//  ~/Library/Application Support/Perch/workflow-debug.log so the live capture
-//  pipeline can be verified during a dry run before filming. Logs only event
-//  *shapes* (app + action + whether content was present) — never raw clipboard
-//  or keystroke contents.
+//  Developer diagnostic for the workflow-capture pipeline. Appends one line per
+//  captured workflow event (and per fired offer) to `workflow-debug.log` in the
+//  support directory so the live capture pipeline can be verified during a dry
+//  run. Logs only event *shapes* (app + action + whether content was present) —
+//  never raw clipboard or keystroke contents.
 //
-//  Remove this file (and the `WorkflowDebugLog.log(...)` call sites in
-//  LiveEventSource.swift and WorkflowCaptureManager.swift) once the trigger is
-//  confirmed working for the demo.
+//  OFF by default so a shipping build never writes diagnostics on every event.
+//  Opt in for local debugging by setting the `PERCH_DEBUG_LOGS` env var.
 //
 
 import Foundation
@@ -26,13 +24,18 @@ enum WorkflowDebugLog {
         return formatter
     }()
 
-    /// Set by the check-workflow-detector harness so fixture runs don't append
-    /// fake "OFFER FIRED" lines into the real app's diagnostic log.
-    private static let isDisabledByEnvironment =
-        ProcessInfo.processInfo.environment["CLICKY_WORKFLOW_DEBUG_LOG_DISABLED"] != nil
+    /// OFF by default. Enabled only when `PERCH_DEBUG_LOGS` is set — and never when
+    /// `PERCH_WORKFLOW_DEBUG_LOG_DISABLED` is set (the check-workflow-detector
+    /// harness sets it so fixture runs don't append fake "OFFER FIRED" lines).
+    private static let isEnabled: Bool = {
+        if ProcessInfo.processInfo.environment["PERCH_WORKFLOW_DEBUG_LOG_DISABLED"] != nil {
+            return false
+        }
+        return ProcessInfo.processInfo.environment["PERCH_DEBUG_LOGS"] != nil
+    }()
 
     static func log(_ message: String) {
-        guard !isDisabledByEnvironment else { return }
+        guard isEnabled else { return }
         let line = "[\(timestampFormatter.string(from: Date()))] \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
         if let handle = try? FileHandle(forWritingTo: logFileURL) {

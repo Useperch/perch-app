@@ -1,6 +1,6 @@
 //
 //  AgentSwarmLayout.swift
-//  leanring-buddy
+//  Perch
 //
 //  Shared geometry for the top-right background-agent swarm, in the notch
 //  overlay's SwiftUI (top-left origin) coordinate space. Used by both the

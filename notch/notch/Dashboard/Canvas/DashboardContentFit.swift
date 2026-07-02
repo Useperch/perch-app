@@ -1,6 +1,6 @@
 //
 //  DashboardContentFit.swift
-//  leanring-buddy
+//  Perch
 //
 //  Shared "how many rows fit in this card" math, so every list-like widget reflows the
 //  same way the news/list widget does: resizing a card taller surfaces more rows and

@@ -1,6 +1,6 @@
 //
 //  PerchSupportPaths.swift
-//  leanring-buddy
+//  Perch
 //
 //  The single source of truth for where Perch keeps its on-disk state.
 //
@@ -22,7 +22,7 @@ enum PerchSupportPaths {
 
     /// The repo root the running app belongs to, or nil if it can't be found.
     ///
-    /// Order: explicit `CLICKY_REPO_ROOT` env override, then the `PerchRepoRoot`
+    /// Order: explicit `PERCH_REPO_ROOT` env override, then the `PerchRepoRoot`
     /// Info.plist key, then walk up from the app bundle to the first ancestor that
     /// contains a `.git` entry. The Info.plist key matters for notch: a
     /// signed build launched from DerivedData (or via Finder) has no `.git`
@@ -31,7 +31,7 @@ enum PerchSupportPaths {
     static let repoRootURL: URL? = {
         let fileManager = FileManager.default
 
-        if let override = ProcessInfo.processInfo.environment["CLICKY_REPO_ROOT"],
+        if let override = ProcessInfo.processInfo.environment["PERCH_REPO_ROOT"],
            !override.isEmpty {
             let overrideURL = URL(fileURLWithPath: override, isDirectory: true)
             if fileManager.fileExists(atPath: overrideURL.path) { return overrideURL }
@@ -54,12 +54,12 @@ enum PerchSupportPaths {
         return nil
     }()
 
-    /// `<repo>/support/`, created on first use. Honors a `CLICKY_SUPPORT_DIRECTORY`
+    /// `<repo>/support/`, created on first use. Honors a `PERCH_SUPPORT_DIRECTORY`
     /// override; falls back to `~/.perch-support` when no repo is resolvable —
     /// never Application Support.
     static let supportDirectoryURL: URL = {
         let baseURL: URL
-        if let override = ProcessInfo.processInfo.environment["CLICKY_SUPPORT_DIRECTORY"],
+        if let override = ProcessInfo.processInfo.environment["PERCH_SUPPORT_DIRECTORY"],
            !override.isEmpty {
             baseURL = URL(fileURLWithPath: override, isDirectory: true)
         } else if let repoRootURL {

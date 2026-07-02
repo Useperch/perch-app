@@ -1,6 +1,6 @@
 //
 //  DotEnvConfiguration.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reads the repo-root `.env` file once and exposes simple key lookups.
 //

@@ -7,7 +7,7 @@
 //
 //    1. Local opt-in — the "Share diagnostics" switch (default OFF; privacy-
 //       respecting opt-in, unlike the abilities which default ON).
-//    2. Not the dev/eval kill switch — CLICKY_RUN_LOG_DISABLED (when set there
+//    2. Not the dev/eval kill switch — PERCH_RUN_LOG_DISABLED (when set there
 //       are no local traces either, so there is nothing to ship).
 //    3. Server kill switch — the owner's per-install `tracingEnabled` flag from
 //       /register (read via PerchInstallIdentity.isServerTracingEnabled()).
@@ -32,10 +32,10 @@ enum TelemetryConsent {
         UserDefaults.standard.set(enabled, forKey: shareDiagnosticsKey)
     }
 
-    /// The dev/eval kill switch: when CLICKY_RUN_LOG_DISABLED is set, PerchRunLog
+    /// The dev/eval kill switch: when PERCH_RUN_LOG_DISABLED is set, PerchRunLog
     /// writes nothing, so there is no trace to upload.
     nonisolated static var isRunLogDisabled: Bool {
-        ProcessInfo.processInfo.environment["CLICKY_RUN_LOG_DISABLED"] != nil
+        ProcessInfo.processInfo.environment["PERCH_RUN_LOG_DISABLED"] != nil
     }
 
     /// Whether a trace may be uploaded right now — all three conditions hold.

@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetHost.swift
-//  leanring-buddy
+//  Perch
 //
 //  Wraps one widget on the pegboard canvas and gives it its interactive behavior:
 //  drag-to-move (snapping to pegs) and a bottom-right handle to expand/shrink it.

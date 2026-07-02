@@ -1,6 +1,6 @@
 //
 //  BackgroundAgentIndicatorStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  The model behind the top-right "agent swarm" indicator: one spinning
 //  Perch triangle per active background agent. Owned by `CompanionManager`

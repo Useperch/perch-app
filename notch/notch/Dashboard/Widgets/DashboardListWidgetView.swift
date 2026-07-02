@@ -1,6 +1,6 @@
 //
 //  DashboardListWidgetView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The generic, data-driven widget body used by every non-builtin widget (email,
 //  calendar, web/news, and other custom widgets). It renders the widget's cached,

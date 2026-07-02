@@ -1,6 +1,6 @@
 //
 //  DashboardGeneratedWidgetChrome.swift
-//  leanring-buddy
+//  Perch
 //
 //  The fixed document shell every agent-authored (`source == .generated`) widget is
 //  rendered inside. It does two jobs:

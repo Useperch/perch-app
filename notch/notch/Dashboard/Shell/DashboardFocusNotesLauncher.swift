@@ -1,6 +1,6 @@
 //
 //  DashboardFocusNotesLauncher.swift
-//  leanring-buddy
+//  Perch
 //
 //  Side effect for the Focus widget: when the user begins a focus session, open Apple
 //  Notes to a fresh, dated note so they have somewhere to think out loud while the timer

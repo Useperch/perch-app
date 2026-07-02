@@ -1,6 +1,6 @@
 //
 //  ServiceCatalog.swift
-//  leanring-buddy
+//  Perch
 //
 //  The curated registry of services Perch can integrate with, and the logic
 //  that decides whether the user's current window matches one of them.

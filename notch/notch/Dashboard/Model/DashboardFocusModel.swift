@@ -1,6 +1,6 @@
 //
 //  DashboardFocusModel.swift
-//  leanring-buddy
+//  Perch
 //
 //  The brain of the Focus widget: a real countdown timer the user can start, pause, and
 //  reset. The widget's ring and readout render straight from this state. The chosen

@@ -1,6 +1,6 @@
 //
 //  RepetitionDetector.swift
-//  leanring-buddy
+//  Perch
 //
 //  The fully-local "Clippy radar" behind the proactive offer. It watches a
 //  rolling window of SemanticInputEvents and fires a WorkflowOffer on one

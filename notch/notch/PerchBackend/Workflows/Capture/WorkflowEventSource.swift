@@ -1,6 +1,6 @@
 //
 //  WorkflowEventSource.swift
-//  leanring-buddy
+//  Perch
 //
 //  The seam that keeps the Workflows capture layer testable. Everything
 //  downstream (the repetition detector, the capture manager) consumes a

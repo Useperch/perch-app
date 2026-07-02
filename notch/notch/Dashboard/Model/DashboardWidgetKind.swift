@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetKind.swift
-//  leanring-buddy
+//  Perch
 //
 //  The catalog of widgets that can sit on the Daily Dashboard pegboard canvas.
 //  Each case knows how to build its content view, whether it wears card chrome,

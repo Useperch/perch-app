@@ -1,6 +1,6 @@
 //
 //  DashboardLayoutSolver.swift
-//  leanring-buddy
+//  Perch
 //
 //  Pure, view-free collision math for the pegboard. Two widgets may never occupy the
 //  same cells, so when a drag/resize is committed the model runs the proposed

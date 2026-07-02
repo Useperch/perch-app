@@ -1,6 +1,6 @@
 //
 //  DashboardCanvasItem.swift
-//  leanring-buddy
+//  Perch
 //
 //  The placement record for a single widget on the pegboard canvas: which widget
 //  (`kind`) sits where (`gridColumn`/`gridRow`) and how big it is (`columnSpan`/

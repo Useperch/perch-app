@@ -9,7 +9,7 @@
 //  Compiled by scripts/check-playbook-cache.sh together with the REAL product
 //  sources (WorkflowPlaybookSynthesizer / WorkflowPlaybookStore / …), so it
 //  exercises the actual shipping logic — not a copy. The canonical tests live
-//  in leanring-buddyTests/WorkflowPlaybookCacheTests.swift (run via Xcode ⌘U);
+//  in PerchTests/WorkflowPlaybookCacheTests.swift (run via Xcode ⌘U);
 //  this is the CLI mirror for a machine with only Command Line Tools.
 //
 

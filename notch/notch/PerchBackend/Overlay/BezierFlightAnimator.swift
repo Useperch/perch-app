@@ -1,6 +1,6 @@
 //
 //  BezierFlightAnimator.swift
-//  leanring-buddy
+//  Perch
 //
 //  A standalone, reusable port of `BlueCursorView.animateBezierFlightArc`: it
 //  flies a point along a quadratic bezier arc, reporting position, a

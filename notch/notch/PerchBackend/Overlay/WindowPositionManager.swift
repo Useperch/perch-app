@@ -1,6 +1,6 @@
 //
 //  WindowPositionManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Manages positioning the app window on the right edge of the screen
 //  and shrinking overlapping windows from other apps via the Accessibility API.
@@ -20,14 +20,14 @@ enum PermissionRequestPresentationDestination: Equatable {
 class WindowPositionManager {
     private static var hasAttemptedAccessibilitySystemPromptDuringCurrentLaunch = false
     private static var hasAttemptedScreenRecordingSystemPromptDuringCurrentLaunch = false
-    private static let hasPreviouslyConfirmedScreenRecordingPermissionUserDefaultsKey = "com.learningbuddy.hasPreviouslyConfirmedScreenRecordingPermission"
+    private static let hasPreviouslyConfirmedScreenRecordingPermissionUserDefaultsKey = "app.perch.hasPreviouslyConfirmedScreenRecordingPermission"
     /// Set when the user goes through onboarding's Screen Recording step. macOS only
     /// applies a Screen Recording grant on the *next* launch, so we use this to drive a
     /// one-time auto-relaunch when onboarding finishes (see
     /// `shouldRelaunchAfterOnboardingToActivateScreenRecording`).
-    private static let screenRecordingRequestedDuringOnboardingUserDefaultsKey = "com.learningbuddy.screenRecordingRequestedDuringOnboarding"
+    private static let screenRecordingRequestedDuringOnboardingUserDefaultsKey = "app.perch.screenRecordingRequestedDuringOnboarding"
     /// Set once we've performed the post-onboarding auto-relaunch, so we never loop on it.
-    private static let didAutoRelaunchAfterOnboardingForScreenRecordingUserDefaultsKey = "com.learningbuddy.didAutoRelaunchAfterOnboardingForScreenRecording"
+    private static let didAutoRelaunchAfterOnboardingForScreenRecordingUserDefaultsKey = "app.perch.didAutoRelaunchAfterOnboardingForScreenRecording"
 
     /// Returns true when the Mac currently has more than one connected display.
     /// Uses AppKit's screen list, which is available without ScreenCaptureKit's
@@ -154,7 +154,7 @@ class WindowPositionManager {
     // post-onboarding relaunch. We surface it deliberately at startup right after
     // onboarding (a throwaway capture) so the user meets it in-context, primed by the
     // onboarding copy, instead of being ambushed on some later query.
-    private static let didScreenCaptureDirectAccessWarmupUserDefaultsKey = "com.learningbuddy.didScreenCaptureDirectAccessWarmup"
+    private static let didScreenCaptureDirectAccessWarmupUserDefaultsKey = "app.perch.didScreenCaptureDirectAccessWarmup"
 
     /// True the FIRST time the classic Screen Recording grant is live in this process
     /// and the direct-access warm-up hasn't run yet — regardless of HOW the grant was

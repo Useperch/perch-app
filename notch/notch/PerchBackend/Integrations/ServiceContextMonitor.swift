@@ -1,6 +1,6 @@
 //
 //  ServiceContextMonitor.swift
-//  leanring-buddy
+//  Perch
 //
 //  Watches what the user is currently looking at and tells the
 //  ServiceConnectionOfferCoordinator which known service (if any) it matches.

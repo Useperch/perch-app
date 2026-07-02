@@ -1,6 +1,6 @@
 //
 //  DashboardWidgets.swift
-//  leanring-buddy
+//  Perch
 //
 //  The bespoke content views for the Daily Dashboard's builtin widgets. Each keeps its
 //  hand-built look but is wired to real data — never fabricated sample content:

@@ -1,6 +1,6 @@
 //
 //  EnabledIntegrationsStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists which NATIVE integrations the user has turned on, as JSON at
 //  <repo>/support/enabled-integrations.json. Native apps (Word, Excel, Numbers)

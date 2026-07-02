@@ -1,6 +1,6 @@
 //
 //  DashboardGeneratedWidgetView.swift
-//  leanring-buddy
+//  Perch
 //
 //  Renders an agent-authored interactive widget (`source == .generated`) — a
 //  self-contained HTML/CSS/JS document — inside a sandboxed `WKWebView` that sits on the

@@ -1,6 +1,6 @@
 //
 //  ServiceConnectionOfferCoordinator.swift
-//  leanring-buddy
+//  Perch
 //
 //  The policy brain behind the proactive "Connect [Service] to Perch?" notch
 //  offer. The ServiceContextMonitor feeds it the catalog entry matching the

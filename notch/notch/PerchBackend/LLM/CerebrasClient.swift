@@ -1,6 +1,6 @@
 //
 //  CerebrasClient.swift
-//  leanring-buddy
+//  Perch
 //
 //  Text-only LLM backend on Cerebras (OpenAI-compatible chat-completions). Used
 //  by the vision gate: a fast classifier decides whether a query needs the
@@ -37,14 +37,14 @@ enum CerebrasConfiguration {
     }
 
     /// Default text model. Z.ai GLM 4.7 — strong general reasoning, ~1000 tok/s.
-    /// Override with `CLICKY_CEREBRAS_MODEL`.
+    /// Override with `PERCH_CEREBRAS_MODEL`.
     static let defaultModel = "zai-glm-4.7"
 
     /// The text model to use, falling back to `defaultModel`. Sent in the request
     /// body and forwarded verbatim by the Worker to Cerebras.
     static var model: String {
-        let rawValue = ProcessInfo.processInfo.environment["CLICKY_CEREBRAS_MODEL"]
-            ?? DotEnvConfiguration.value(forKey: "CLICKY_CEREBRAS_MODEL")
+        let rawValue = ProcessInfo.processInfo.environment["PERCH_CEREBRAS_MODEL"]
+            ?? DotEnvConfiguration.value(forKey: "PERCH_CEREBRAS_MODEL")
         let trimmed = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmed, !trimmed.isEmpty { return trimmed }
         return defaultModel
@@ -65,7 +65,7 @@ final class CerebrasClient {
     private let session: URLSession
 
     private init() {
-        // Mirror ClaudeAPI/OpenAIAPI session config: cache TLS tickets (.default),
+        // Mirror ClaudeAPI session config: cache TLS tickets (.default),
         // never persist responses or cookies.
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 60

@@ -441,6 +441,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
 
+        // Migrate legacy `com.learningbuddy.*` UserDefaults keys to `app.perch.*`
+        // before anything reads onboarding/permission state. One-shot, no-op after.
+        PerchDefaultsMigration.runIfNeeded()
+
         // Cursor overlay is intentionally DISABLED (product decision: no screen
         // cursor that follows or points). Suppress every overlay window at the
         // single chokepoint so it never appears, then start the backend:

@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetNotchDrag.swift
-//  leanring-buddy
+//  Perch
 //
 //  The dashboard side of "drag a widget into the notch": the custom pasteboard type the
 //  drag carries, the notification posted when such a drag begins (so the notch can put up

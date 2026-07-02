@@ -1,6 +1,6 @@
 //
 //  DashboardGenericListRow.swift
-//  leanring-buddy
+//  Perch
 //
 //  One tappable row inside a data-driven widget (an email, a calendar event, a news
 //  headline). Styled to match the bespoke "Needs you" rows — a serif title line with a

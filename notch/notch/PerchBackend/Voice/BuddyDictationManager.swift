@@ -1,6 +1,6 @@
 //
 //  BuddyDictationManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Shared push-to-talk dictation manager for the help chat and brainstorm buddy.
 //  Captures microphone audio with AVAudioEngine, routes it into the active

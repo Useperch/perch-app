@@ -1,6 +1,6 @@
 //
 //  BackgroundAgentSwarmView.swift
-//  leanring-buddy
+//  Perch
 //
 //  Renders the stack of background-agent indicator triangles at the top-right
 //  of the notch screen, one per active agent, each in its slot color (blue →

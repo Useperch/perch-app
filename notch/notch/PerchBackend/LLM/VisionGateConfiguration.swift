@@ -1,6 +1,6 @@
 //
 //  VisionGateConfiguration.swift
-//  leanring-buddy
+//  Perch
 //
 //  The vision gate decides, per voice/typed query, whether Perch needs to look
 //  at the user's screen. When it doesn't, the answer is served by the fast
@@ -26,11 +26,11 @@ enum VisionGateConfiguration {
         case always
     }
 
-    /// Reads `CLICKY_VISION_GATE` — process environment first (so a terminal
+    /// Reads `PERCH_VISION_GATE` — process environment first (so a terminal
     /// launch can override), then the repo `.env`. Unknown / unset → `.auto`.
     static var mode: Mode {
-        let rawValue = ProcessInfo.processInfo.environment["CLICKY_VISION_GATE"]
-            ?? DotEnvConfiguration.value(forKey: "CLICKY_VISION_GATE")
+        let rawValue = ProcessInfo.processInfo.environment["PERCH_VISION_GATE"]
+            ?? DotEnvConfiguration.value(forKey: "PERCH_VISION_GATE")
             ?? "auto"
         let normalized = rawValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return normalized == "always" ? .always : .auto

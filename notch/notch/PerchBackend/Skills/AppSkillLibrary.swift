@@ -1,6 +1,6 @@
 //
 //  AppSkillLibrary.swift
-//  leanring-buddy
+//  Perch
 //
 //  Per-app "skills" for the desktop automation agent. When the agent is operating
 //  inside a specific Mac app, it can load a read-only markdown skill keyed by that

@@ -1,6 +1,6 @@
 //
 //  DashboardLayoutStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reads and writes the pegboard layout to `support/dashboard-layout.json`. Per the
 //  project's on-disk-state rule, the path is resolved through `PerchSupportPaths`

@@ -1,6 +1,6 @@
 //
 //  WorkflowCaptureModels.swift
-//  leanring-buddy
+//  Perch
 //
 //  Value types shared by the Workflows capture layer and the repetition
 //  detector. These are deliberately pure (Foundation only, no AppKit) so the

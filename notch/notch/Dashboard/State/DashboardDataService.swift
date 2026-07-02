@@ -1,6 +1,6 @@
 //
 //  DashboardDataService.swift
-//  leanring-buddy
+//  Perch
 //
 //  The single seam between the dashboard's widgets and the outside world: it fetches a
 //  widget's live items (`fetch`). The transport is injected as a protocol so the

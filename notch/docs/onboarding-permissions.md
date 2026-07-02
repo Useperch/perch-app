@@ -1,7 +1,7 @@
 # Perch Onboarding — Permissions Spec
 
 Source of truth for the onboarding flow rebuild. Cross-references `Info.plist`
-declared usage descriptions, the `ClickyCapabilityToggles` (Vision / Microphone /
+declared usage descriptions, the `PerchCapabilityToggles` (Vision / Microphone /
 Accessibility) enforcement layer, and the actual macOS grant mechanism for each.
 
 ## Ordering principle
@@ -39,7 +39,7 @@ Accessibility → Music-source → Finish.
 
 The current flow asks for **Camera** (a minor inherited mirror feature) while
 skipping **Microphone** and **Screen Recording** — two of Perch's three core
-pillars (Vision / Microphone / Accessibility per `ClickyPermissionsMenuContent`).
+pillars (Vision / Microphone / Accessibility per `PerchPermissionsMenuContent`).
 
 ## Open questions
 - (a) Drop Camera entirely?

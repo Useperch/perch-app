@@ -1,6 +1,6 @@
 //
 //  DashboardRankingService.swift
-//  leanring-buddy
+//  Perch
 //
 //  Assigns a per-item importance (0...1) to a freshly-fetched widget's items. The
 //  providers already return their items in a meaningful order — Exa by relevance to

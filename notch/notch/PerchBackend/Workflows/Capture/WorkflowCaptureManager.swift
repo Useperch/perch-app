@@ -1,6 +1,6 @@
 //
 //  WorkflowCaptureManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Owns the Workflows capture pipeline: it pulls normalized events from a
 //  WorkflowEventSource, feeds them through the local RepetitionDetector, and

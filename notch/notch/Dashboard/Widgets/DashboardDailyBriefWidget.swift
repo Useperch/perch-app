@@ -1,6 +1,6 @@
 //
 //  DashboardDailyBriefWidget.swift
-//  leanring-buddy
+//  Perch
 //
 //  The Daily Brief hero card on the dashboard: a full-bleed painting with the
 //  "The / <Weekday> Brief" headline centered in Melodrama gold, and today's date

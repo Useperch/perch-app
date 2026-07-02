@@ -1,6 +1,6 @@
 //
 //  DashboardNewsRow.swift
-//  leanring-buddy
+//  Perch
 //
 //  One headline inside a web/news widget. Unlike the generic list row (which pairs a
 //  serif title with a sans summary), a news item is a single clean headline — so a flat

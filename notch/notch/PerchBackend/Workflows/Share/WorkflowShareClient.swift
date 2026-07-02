@@ -1,10 +1,10 @@
 //
 //  WorkflowShareClient.swift
-//  leanring-buddy
+//  Perch
 //
 //  HTTP client for the Worker's workflow-share routes: uploads a playbook's
 //  markdown and gets back a share link, and fetches a shared playbook by id
-//  on the receiving device. Every request carries the `X-Clicky-Client`
+//  on the receiving device. Every request carries the `X-Perch-Client`
 //  secret header — the Worker only serves playbook content to requests that
 //  have it, so a browser opening the share link sees a stub landing page,
 //  never the playbook.
@@ -62,7 +62,7 @@ struct WorkflowShareClient {
     /// CompanionManager's `workerBaseURL`).
     static func resolveShareBaseURL() -> String {
         if let environmentOverride = ProcessInfo.processInfo
-            .environment["CLICKY_WORKFLOW_SHARE_BASE_URL"], !environmentOverride.isEmpty {
+            .environment["PERCH_WORKFLOW_SHARE_BASE_URL"], !environmentOverride.isEmpty {
             return environmentOverride
         }
         if let configuredShareBaseURL = AppBundleConfiguration.stringValue(
@@ -80,7 +80,7 @@ struct WorkflowShareClient {
     /// 30-day expiry.
     static func resolveClientSecret() -> String {
         if let environmentOverride = ProcessInfo.processInfo
-            .environment["CLICKY_WORKFLOW_SHARE_CLIENT_SECRET"], !environmentOverride.isEmpty {
+            .environment["PERCH_WORKFLOW_SHARE_CLIENT_SECRET"], !environmentOverride.isEmpty {
             return environmentOverride
         }
         return AppBundleConfiguration.stringValue(forKey: "WorkflowShareClientSecret")
@@ -115,7 +115,7 @@ struct WorkflowShareClient {
         var request = URLRequest(url: uploadURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(clientSecret, forHTTPHeaderField: "X-Clicky-Client")
+        request.setValue(clientSecret, forHTTPHeaderField: "X-Perch-Client")
         request.httpBody = try JSONEncoder().encode(
             UploadRequestBody(title: title, markdown: markdown)
         )
@@ -138,7 +138,7 @@ struct WorkflowShareClient {
         }
         var request = URLRequest(url: fetchURL)
         request.httpMethod = "GET"
-        request.setValue(clientSecret, forHTTPHeaderField: "X-Clicky-Client")
+        request.setValue(clientSecret, forHTTPHeaderField: "X-Perch-Client")
 
         let (responseData, response) = try await performRequest(request)
         try throwForErrorStatus(response)

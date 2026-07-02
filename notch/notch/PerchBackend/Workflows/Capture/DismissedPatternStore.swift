@@ -1,6 +1,6 @@
 //
 //  DismissedPatternStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists the rotation-invariant keys of proactive-offer patterns the user
 //  has dismissed ("Not now"), as JSON at

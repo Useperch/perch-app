@@ -1,6 +1,6 @@
 //
 //  DashboardCanvasView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The infinite pegboard canvas: a dot grid behind a freely arrangeable layer of
 //  widgets. The whole widget layer is pan/zoom-transformed as one unit (so dots and

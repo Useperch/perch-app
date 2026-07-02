@@ -1,6 +1,6 @@
 //
 //  LoginItemManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Single source of truth for whether Perch launches at login. Wraps
 //  `SMAppService.mainApp` (the modern macOS login-item API, shown in System

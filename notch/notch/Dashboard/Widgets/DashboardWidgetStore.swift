@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  The source of truth for *what widgets exist* on the Daily Dashboard and their
 //  content (the placement/geometry of each lives separately in `DashboardLayoutStore`).

@@ -1,6 +1,6 @@
 //
 //  DashboardRowLink.swift
-//  leanring-buddy
+//  Perch
 //
 //  Makes a widget row open its real source when clicked — an email row opens the actual
 //  Gmail thread, a calendar row opens the event, and so on. Centralizing the tap + hover

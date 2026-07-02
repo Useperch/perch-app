@@ -1,6 +1,6 @@
 //
 //  DashboardWindowController.swift
-//  leanring-buddy
+//  Perch
 //
 //  Owns the standalone Daily Dashboard window: a standard, resizable application
 //  window (title bar + traffic-light controls) whose content is backed by an
