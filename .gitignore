@@ -33,3 +33,6 @@ logs/
 *.provisionprofile
 id_rsa*
 *.secret
+
+# Internal release runbook (local only)
+RELEASING.md
