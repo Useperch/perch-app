@@ -26,15 +26,37 @@ enum PerchFreshInstallDetector {
     static func resetPreferencesIfFreshInstall(defaults: UserDefaults = .standard) {
         let currentFingerprint = makeInstallFingerprint()
         let storedFingerprint = readStoredFingerprint()
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
 
         defer { writeStoredFingerprint(currentFingerprint) }
 
-        guard let storedFingerprint, storedFingerprint != currentFingerprint else { return }
-        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
+        if let storedFingerprint {
+            guard storedFingerprint != currentFingerprint else { return }
+            clearPreferencesDomain(named: bundleIdentifier, defaults: defaults, reason: "fresh install")
+            return
+        }
 
+        // First launch after this tracker shipped: install-state did not exist yet,
+        // so the old guard let storedFingerprint check returned early and left
+        // firstLaunch=false (and other stale keys) from a prior DMG copy in place.
+        if let existingDomain = defaults.persistentDomain(forName: bundleIdentifier),
+           !existingDomain.isEmpty {
+            clearPreferencesDomain(
+                named: bundleIdentifier,
+                defaults: defaults,
+                reason: "stale preferences on first fingerprint"
+            )
+        }
+    }
+
+    private static func clearPreferencesDomain(
+        named bundleIdentifier: String,
+        defaults: UserDefaults,
+        reason: String
+    ) {
         defaults.removePersistentDomain(forName: bundleIdentifier)
         defaults.synchronize()
-        print("📦 Fresh Perch install detected — cleared saved preferences for \(bundleIdentifier)")
+        print("📦 Perch preferences reset (\(reason)) — cleared \(bundleIdentifier)")
     }
 
     private static func makeInstallFingerprint() -> String {

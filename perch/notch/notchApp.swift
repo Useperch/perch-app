@@ -622,6 +622,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupDragDetectors()
 
+        print("🚀 Onboarding gate — firstLaunch: \(coordinator.firstLaunch)")
+
         if coordinator.firstLaunch {
             DispatchQueue.main.async {
                 self.showOnboardingWindow()
@@ -782,13 +784,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.title = "Onboarding"
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
+            // Match SettingsWindowController: an LSUIElement (menu-bar-only) app
+            // cannot reliably surface a titled window on macOS 14+ unless we
+            // temporarily promote to a regular app. Without this the onboarding
+            // flow was created but stayed invisible behind the frontmost app.
+            window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
+            window.hidesOnDeactivate = false
+            window.isExcludedFromWindowsMenu = false
             window.contentView = NSHostingView(
                 rootView: OnboardingView(
                     step: resumedStep,
                     onFinish: {
                         window.orderOut(nil)
-//                        NSApp.setActivationPolicy(.accessory)
                         window.close()
+                        NSApp.setActivationPolicy(.accessory)
                         NSApp.deactivate()
 
                         // If the user granted Screen Recording during onboarding, macOS
@@ -821,10 +830,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             onboardingWindowController = NSWindowController(window: window)
         }
 
-//        NSApp.setActivationPolicy(.regular)
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
         onboardingWindowController?.window?.orderFrontRegardless()
+        onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
     }
 }
 
