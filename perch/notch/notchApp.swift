@@ -441,9 +441,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
 
-        // Migrate legacy `com.learningbuddy.*` UserDefaults keys to `app.perch.*`
-        // before anything reads onboarding/permission state. One-shot, no-op after.
-        PerchDefaultsMigration.runIfNeeded()
+        // Legacy key migration + fresh-install preference reset already ran inside
+        // ViewCoordinator.shared's static initializer (before any @AppStorage read).
 
         // Cursor overlay is intentionally DISABLED (product decision: no screen
         // cursor that follows or points). Suppress every overlay window at the

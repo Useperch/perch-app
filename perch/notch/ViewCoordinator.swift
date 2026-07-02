@@ -48,7 +48,13 @@ struct ExpandedItem {
 
 @MainActor
 class ViewCoordinator: ObservableObject {
-    static let shared = ViewCoordinator()
+    static let shared: ViewCoordinator = {
+        // Must run before any @AppStorage / UserDefaults reads so a replaced beta
+        // build does not inherit firstLaunch=false from a prior install.
+        PerchFreshInstallDetector.resetPreferencesIfFreshInstall()
+        PerchDefaultsMigration.runIfNeeded()
+        return ViewCoordinator()
+    }()
 
     @Published var currentView: NotchViews = .home
     @Published var helloAnimationRunning: Bool = false
