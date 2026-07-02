@@ -92,11 +92,11 @@ struct NotchTextInputComposer: View {
             }
         }
         .onDrop(of: [.image, .fileURL], isTargeted: $isDropTargeted) { providers in
-            ingest(providers: providers)
+            controller.ingest(providers: providers)
             return true
         }
         .onPasteCommand(of: [.image, .fileURL]) { providers in
-            ingest(providers: providers)
+            controller.ingest(providers: providers)
         }
         // Escape closes the composer without sending.
         .onExitCommand {
@@ -139,7 +139,7 @@ struct NotchTextInputComposer: View {
     }
 
     private var attachButton: some View {
-        Button(action: presentImagePicker) {
+        Button(action: { controller.requestTray() }) {
             Image(systemName: "plus")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.75))
@@ -148,7 +148,7 @@ struct NotchTextInputComposer: View {
         }
         .buttonStyle(.plain)
         .pointingHandCursorOnHover()
-        .help("Attach an image")
+        .help("Add context")
     }
 
     private var sendButton: some View {
@@ -210,44 +210,6 @@ struct NotchTextInputComposer: View {
         // a follow-up. Escape / double-Control still fully dismiss.
         controller.clearDraftAfterSend()
         focusTextFieldSoon()
-    }
-
-    /// Open a standard file picker filtered to images.
-    private func presentImagePicker() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.allowedContentTypes = [.image]
-        if panel.runModal() == .OK {
-            for fileURL in panel.urls {
-                controller.addImageAttachment(fromFileURL: fileURL)
-            }
-        }
-        // The panel takes key focus; hand it back to the text field.
-        focusTextFieldSoon()
-    }
-
-    /// Pull images out of dropped/pasted item providers (image data first, then a
-    /// file URL pointing at an image). Loading is async per provider.
-    private func ingest(providers: [NSItemProvider]) {
-        for provider in providers {
-            if provider.canLoadObject(ofClass: NSImage.self) {
-                _ = provider.loadObject(ofClass: NSImage.self) { object, _ in
-                    guard let image = object as? NSImage else { return }
-                    Task { @MainActor in
-                        controller.addImageAttachment(image, fileName: "Pasted image")
-                    }
-                }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-                _ = provider.loadObject(ofClass: URL.self) { fileURL, _ in
-                    guard let fileURL else { return }
-                    Task { @MainActor in
-                        controller.addImageAttachment(fromFileURL: fileURL)
-                    }
-                }
-            }
-        }
     }
 
     /// Assert focus now and again on the next runloop tick — the window may only
