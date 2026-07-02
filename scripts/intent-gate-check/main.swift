@@ -3,9 +3,9 @@
 //  Standalone, no-Xcode verification of the Intent Gate.
 //
 //  Compiled by scripts/check-intent-gate.sh together with the real product
-//  source (leanring-buddy/IntentGate.swift), so it exercises the actual
+//  source (Perch/IntentGate.swift), so it exercises the actual
 //  shipping classification logic — not a copy. The canonical tests live in
-//  leanring-buddyTests/IntentGateTests.swift (run via Xcode ⌘U); this is the
+//  PerchTests/IntentGateTests.swift (run via Xcode ⌘U); this is the
 //  CLI mirror for a machine with only Command Line Tools.
 //
 

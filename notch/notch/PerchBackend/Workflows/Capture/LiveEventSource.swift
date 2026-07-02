@@ -1,6 +1,6 @@
 //
 //  LiveEventSource.swift
-//  leanring-buddy
+//  Perch
 //
 //  The thin, permission-gated WorkflowEventSource that turns real OS input into
 //  normalized SemanticInputEvents. It is deliberately "dumb": it does no

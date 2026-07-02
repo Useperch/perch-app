@@ -1,6 +1,6 @@
 //
 //  SnoozedServicesStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists when the user last tapped "Not now" on a connect offer, as JSON at
 //  <repo>/support/snoozed-services.json (the same small append-mostly pattern as

@@ -1,6 +1,6 @@
 //
 //  VisionGateDeicticGuard.swift
-//  leanring-buddy
+//  Perch
 //
 //  A deterministic safety net in front of the vision gate's LLM classifier
 //  (CerebrasClient.classifyNeedsScreen). Some user messages point unambiguously

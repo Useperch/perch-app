@@ -1,6 +1,6 @@
 //
 //  WorkflowShareImportCoordinator.swift
-//  leanring-buddy
+//  Perch
 //
 //  The receiving side of "Send this workflow": handles a `perch://import/<id>`
 //  URL (delivered when the user clicks "Open in Perch" on the share landing

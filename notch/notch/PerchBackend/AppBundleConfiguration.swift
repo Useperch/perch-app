@@ -1,6 +1,6 @@
 //
 //  AppBundleConfiguration.swift
-//  leanring-buddy
+//  Perch
 //
 //  Shared helper for reading runtime configuration from the built app bundle.
 //

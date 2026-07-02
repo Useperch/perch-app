@@ -1,6 +1,6 @@
 //
 //  DashboardCanvasModel.swift
-//  leanring-buddy
+//  Perch
 //
 //  The brain of the pegboard canvas: it owns the placed widgets, the pan offset and
 //  zoom scale, and the in-flight drag/resize session. It also installs the scroll

@@ -1,6 +1,6 @@
 //
 //  WorkflowVideoKeyframeExtractor.swift
-//  leanring-buddy
+//  Perch
 //
 //  Cuts the keyframes the analysis stage sends to Claude out of the recorded
 //  demonstration movie: one frame just after each significant moment plus
@@ -244,7 +244,7 @@ enum WorkflowVideoKeyframeExtractor {
     /// `~/Library/Application Support/Perch/workflows/last-analysis-frames/`.
     /// Overwritten every run; disabled alongside the debug log.
     private static func dumpKeyframesForDiagnosis(_ keyframes: [WorkflowKeyframe]) {
-        guard ProcessInfo.processInfo.environment["CLICKY_WORKFLOW_DEBUG_LOG_DISABLED"] == nil else {
+        guard ProcessInfo.processInfo.environment["PERCH_WORKFLOW_DEBUG_LOG_DISABLED"] == nil else {
             return
         }
         let dumpDirectory = PerchSupportPaths.directory("workflows")

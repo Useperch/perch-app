@@ -1,6 +1,6 @@
 //
 //  PerchAnalytics.swift
-//  notch (ported from leanring-buddy)
+//  notch (ported from Perch)
 //
 //  No-op analytics shim. The original was a PostHog wrapper; PostHog is a 3rd-party SPM
 //  package the notch host doesn't bundle, and analytics is non-essential to the

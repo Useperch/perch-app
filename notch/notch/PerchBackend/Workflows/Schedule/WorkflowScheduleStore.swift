@@ -1,6 +1,6 @@
 //
 //  WorkflowScheduleStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists workflow repeat-schedules as JSON at
 //  ~/Library/Application Support/Perch/workflow-schedules.json — the same

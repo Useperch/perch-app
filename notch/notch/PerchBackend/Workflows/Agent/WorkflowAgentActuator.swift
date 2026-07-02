@@ -1,6 +1,6 @@
 //
 //  WorkflowAgentActuator.swift
-//  leanring-buddy
+//  Perch
 //
 //  Executes ONE agent action against the user's real desktop. This is the only
 //  place in the app that *posts* events (every CGEvent tap elsewhere is
@@ -306,8 +306,8 @@ final class WorkflowAgentActuator: WorkflowActionPerforming {
 
     /// Screenshot pixels → display points (the screenshot covers exactly
     /// displayFrame), then AppKit bottom-left-origin → CG top-left-origin
-    /// global coordinates for the event. Same conversion shape
-    /// ElementLocationDetector uses for pointing.
+    /// global coordinates for the event. Same conversion shape the companion's
+    /// [POINT:x,y] pointing path uses.
     private func screenPointFromScreenshotPixels(
         xPixels: Int, yPixels: Int, perception: WorkflowAgentPerception
     ) -> ScreenPointConversion {

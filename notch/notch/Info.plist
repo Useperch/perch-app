@@ -15,7 +15,7 @@
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
@@ -41,7 +41,7 @@
 	<key>SUPublicEDKey</key>
 	<string>B1Y47t8C/v8ImurYA+9arEsuCrpxwJSviekiflMElbI=</string>
 	<key>TranscribeTokenURL</key>
-	<string>https://clicky-proxy.kar69-96.workers.dev/transcribe-token</string>
+	<string>https://perch-gateway.kar69-96.workers.dev/transcribe-token</string>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict/>
@@ -49,9 +49,9 @@
 	<key>VoiceTranscriptionProvider</key>
 	<string>assemblyai</string>
 	<key>WorkerBaseURL</key>
-	<string>https://clicky-proxy.kar69-96.workers.dev</string>
+	<string>https://perch-gateway.kar69-96.workers.dev</string>
 	<key>WorkflowShareBaseURL</key>
-	<string>https://clicky-proxy.kar69-96.workers.dev</string>
+	<string>https://perch-gateway.kar69-96.workers.dev</string>
 	<key>WorkflowShareClientSecret</key>
 	<string>YOUR_WORKFLOW_SHARE_SECRET</string>
 </dict>

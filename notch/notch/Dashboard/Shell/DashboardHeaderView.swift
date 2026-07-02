@@ -1,6 +1,6 @@
 //
 //  DashboardHeaderView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The Daily Dashboard's two header widgets, each its own draggable/resizable canvas
 //  item sitting directly on the glass (no card chrome): the serif greeting (real date +

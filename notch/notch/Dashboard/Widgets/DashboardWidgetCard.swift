@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetCard.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reusable chrome for every Daily Dashboard widget: the rounded card container
 //  (with the design's soft double shadow) and the small-caps icon + label header

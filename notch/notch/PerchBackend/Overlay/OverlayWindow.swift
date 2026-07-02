@@ -1,6 +1,6 @@
 //
 //  OverlayWindow.swift
-//  leanring-buddy
+//  Perch
 //
 //  System-wide transparent overlay window for blue glowing cursor.
 //  One OverlayWindow is created per screen so the cursor buddy

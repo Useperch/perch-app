@@ -1,6 +1,6 @@
 //
 //  WorkflowRunCoordinator.swift
-//  leanring-buddy
+//  Perch
 //
 //  Orchestrates "Show Perch once" end to end: record one demonstration
 //  (screen video + moment timeline + sources) → synthesize the markdown

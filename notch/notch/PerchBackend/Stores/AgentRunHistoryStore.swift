@@ -1,6 +1,6 @@
 //
 //  AgentRunHistoryStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists completed browser-subagent runs so the notch panel's Agents tab
 //  can show a history of past agent work (matching HeyPerch's colored agent

@@ -1,6 +1,6 @@
 //
 //  PerchCursorMetrics.swift
-//  leanring-buddy
+//  Perch
 //
 //  Shared sizing for the Perch triangle so the main cursor and every
 //  background-agent indicator read as the same Perch — change it in one place.

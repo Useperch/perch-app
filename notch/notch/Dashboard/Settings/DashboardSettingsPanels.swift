@@ -1,6 +1,6 @@
 //
 //  DashboardSettingsPanels.swift
-//  leanring-buddy
+//  Perch
 //
 //  The settings detail pane. Visuals shows a Dashboard/Perch switcher in the middle
 //  and its controls drive the live dashboard background. Accessibility and

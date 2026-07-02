@@ -1,6 +1,6 @@
 //
 //  CompanionScreenCaptureUtility.swift
-//  leanring-buddy
+//  Perch
 //
 //  Standalone screenshot capture for the companion voice flow.
 //  Decoupled from the legacy ScreenshotManager so the companion mode

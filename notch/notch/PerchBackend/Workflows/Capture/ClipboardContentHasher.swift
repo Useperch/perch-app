@@ -1,6 +1,6 @@
 //
 //  ClipboardContentHasher.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reduces clipboard / typed text to a short, one-way hash. The capture layer
 //  records *only* this hash — never the raw content — which is exactly enough

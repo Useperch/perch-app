@@ -1,6 +1,6 @@
 //
 //  WorkflowDemonstrationRecorder.swift
-//  leanring-buddy
+//  Perch
 //
 //  Orchestrates the two halves of recording a demonstration: the screen video
 //  (WorkflowScreenVideoRecorder, macOS 15+) and the moment timeline

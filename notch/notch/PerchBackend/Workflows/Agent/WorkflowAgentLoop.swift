@@ -1,6 +1,6 @@
 //
 //  WorkflowAgentLoop.swift
-//  leanring-buddy
+//  Perch
 //
 //  The in-app desktop agent that EXECUTES a workflow playbook: a
 //  perceive → decide → act → verify loop modeled on the browser subagent's

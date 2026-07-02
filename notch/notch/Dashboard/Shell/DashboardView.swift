@@ -1,6 +1,6 @@
 //
 //  DashboardView.swift
-//  leanring-buddy
+//  Perch
 //
 //  Root SwiftUI view for the standalone Daily Dashboard window. Shows either the
 //  dashboard (greeting/weather header + widget grid + add button) or the settings

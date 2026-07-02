@@ -1,6 +1,6 @@
 //
 //  DashboardTheme.swift
-//  leanring-buddy
+//  Perch
 //
 //  Design tokens for the standalone Daily Dashboard surface.
 //

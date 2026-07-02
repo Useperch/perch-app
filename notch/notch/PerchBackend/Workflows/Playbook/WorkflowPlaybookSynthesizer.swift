@@ -1,6 +1,6 @@
 //
 //  WorkflowPlaybookSynthesizer.swift
-//  leanring-buddy
+//  Perch
 //
 //  The analysis stage of the redesigned Workflows pipeline: takes everything
 //  the recorder captured (keyframes cut from the demonstration video, the
@@ -38,7 +38,7 @@ final class WorkflowPlaybookSynthesizer {
     /// reads for the voice flow; the env override exists for command-line
     /// harnesses, where there is no app bundle to read the key from.
     static let workerBaseURL = AppBundleConfiguration.stringValue(forKey: "WorkerBaseURL")
-        ?? ProcessInfo.processInfo.environment["CLICKY_WORKER_BASE_URL"]
+        ?? ProcessInfo.processInfo.environment["PERCH_WORKER_BASE_URL"]
         ?? "https://your-worker-name.your-subdomain.workers.dev"
 
     /// Playbooks run ~1-3K tokens; leave generous headroom so a long remaining-

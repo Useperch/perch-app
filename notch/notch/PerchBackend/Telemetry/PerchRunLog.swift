@@ -1,6 +1,6 @@
 //
 //  PerchRunLog.swift
-//  leanring-buddy
+//  Perch
 //
 //  Per-run trace documents written into a `logs/` folder INSIDE the repo (never
 //  into ~/Library/Application Support). Each companion turn (one voice or typed
@@ -58,7 +58,7 @@ enum PerchRunLog {
 
     /// Set by test/eval harnesses so fixture runs don't write trace docs.
     private static let isDisabledByEnvironment =
-        ProcessInfo.processInfo.environment["CLICKY_RUN_LOG_DISABLED"] != nil
+        ProcessInfo.processInfo.environment["PERCH_RUN_LOG_DISABLED"] != nil
 
     /// `<repo>/logs/`, created on first use. Nil when no repo could be resolved
     /// (we deliberately never fall back to Application Support). The relocated

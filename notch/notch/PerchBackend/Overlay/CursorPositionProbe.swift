@@ -1,6 +1,6 @@
 //
 //  CursorPositionProbe.swift
-//  leanring-buddy
+//  Perch
 //
 //  A tiny shared holder for the main Perch cursor's latest on-screen position,
 //  in the notch screen's SwiftUI (top-left origin) coordinate space.

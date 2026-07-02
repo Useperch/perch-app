@@ -1,6 +1,6 @@
 //
 //  WorkflowDemonstrationModels.swift
-//  leanring-buddy
+//  Perch
 //
 //  Value types for the redesigned Workflows pipeline: the user demonstrates ONE
 //  iteration while Perch records a screen VIDEO plus a timestamped timeline of

@@ -1,6 +1,6 @@
 //
 //  ComposioManifestReader.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reads the Python sidecar's capability manifest (<repo>/support/composio-manifest.json)
 //  to answer two questions the integration-offer coordinator needs without ever

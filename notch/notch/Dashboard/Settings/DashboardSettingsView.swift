@@ -1,6 +1,6 @@
 //
 //  DashboardSettingsView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The settings page shell: a light card on the dark glass holding the sidebar
 //  (Visuals / Accessibility / Permissions) beside the detail pane for the current

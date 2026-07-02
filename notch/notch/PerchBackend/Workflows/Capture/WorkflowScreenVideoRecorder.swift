@@ -1,6 +1,6 @@
 //
 //  WorkflowScreenVideoRecorder.swift
-//  leanring-buddy
+//  Perch
 //
 //  Records the user's demonstration as an actual screen movie (.mov on disk)
 //  using ScreenCaptureKit's SCRecordingOutput. The keyframe extractor later

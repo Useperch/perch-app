@@ -1,6 +1,6 @@
 //
 //  DesktopTool.swift
-//  leanring-buddy
+//  Perch
 //
 //  The "hands" half of the desktop tool family (Plan 09). The Python Core owns the
 //  brain: it perceives the focused native app (by asking this tool), decides ONE

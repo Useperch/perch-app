@@ -1,6 +1,6 @@
 //
 //  DashboardLocalStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  The source of truth for the Daily Dashboard's *local* widget content — the thing the
 //  user owns directly rather than fetching from a service: their Notes scratchpad.

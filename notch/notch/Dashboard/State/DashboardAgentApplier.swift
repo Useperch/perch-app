@@ -1,6 +1,6 @@
 //
 //  DashboardAgentApplier.swift
-//  leanring-buddy
+//  Perch
 //
 //  The single seam that turns the main agent's dashboard create/edit/snapshot request
 //  (arriving over the subagent socket via `BrowserSubagentManager`) into mutations of

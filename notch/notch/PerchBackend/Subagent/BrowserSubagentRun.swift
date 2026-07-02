@@ -244,7 +244,7 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
 #if DEBUG
 extension BrowserSubagentRun {
     /// Builds a fully-formed STALE mock run for previewing the Agents tab inside the
-    /// real notch without a live sidecar. Gated to DEBUG + the `CLICKY_PREVIEW_AGENTS`
+    /// real notch without a live sidecar. Gated to DEBUG + the `PERCH_PREVIEW_AGENTS`
     /// launch flag (see `BrowserSubagentManager`), so it never reaches a shipped build.
     /// Same-file access lets it seed the `private(set)` state directly.
     static func previewMock(

@@ -1,6 +1,6 @@
 //
 //  WorkflowPlaybookStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  Persists workflow playbooks as plain markdown files at
 //  ~/Library/Application Support/Perch/workflows/<slug>.md — a durable,

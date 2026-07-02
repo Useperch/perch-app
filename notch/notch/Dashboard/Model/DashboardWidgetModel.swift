@@ -1,6 +1,6 @@
 //
 //  DashboardWidgetModel.swift
-//  leanring-buddy
+//  Perch
 //
 //  The dynamic widget data model that turns the Daily Dashboard from a fixed set of
 //  bespoke widgets into a list of user-addable, data-driven widgets. A `DashboardWidget`

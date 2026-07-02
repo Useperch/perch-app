@@ -1,6 +1,6 @@
 //
 //  DashboardSettingsControls.swift
-//  leanring-buddy
+//  Perch
 //
 //  Reusable building blocks for the settings detail pane: grouped containers,
 //  setting rows, and the small controls (segmented picker, color swatches,

@@ -1,6 +1,6 @@
 //
 //  DashboardGreetingIntro.swift
-//  leanring-buddy
+//  Perch
 //
 //  The open-dashboard greeting splash. When the Daily Dashboard is shown, the serif
 //  greeting ("Good <morning/afternoon/evening>, <Name>") appears centered on the glass

@@ -1,6 +1,6 @@
 //
 //  DesktopWorkflowPerceiver.swift
-//  leanring-buddy
+//  Perch
 //
 //  The live perception half of the workflow agent loop: captures what the
 //  agent sees each turn — the cursor screen at the model's effective

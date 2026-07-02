@@ -1,6 +1,6 @@
 //
 //  ChromeRecordingCoordinator.swift
-//  leanring-buddy
+//  Perch
 //
 //  UI-facing state for Chrome record-and-replay. The user demonstrates a web task
 //  in the headful sub-browser; this coordinator tracks the capture lifecycle

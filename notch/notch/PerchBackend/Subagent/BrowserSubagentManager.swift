@@ -50,7 +50,7 @@ final class BrowserSubagentManager: ObservableObject {
 
     #if DEBUG
     /// Seeds stale mock runs so the Agents tab's running layout can be inspected in the
-    /// real notch with no sidecar. DEBUG + `CLICKY_PREVIEW_AGENTS=1` only. The hero
+    /// real notch with no sidecar. DEBUG + `PERCH_PREVIEW_AGENTS=1` only. The hero
     /// falls back to the last running run, so the richest mock is placed last.
     private func seedPreviewRuns() {
         // IDs chosen so the deterministic palette hash lands each mock on a visibly

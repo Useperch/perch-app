@@ -1,6 +1,6 @@
 //
 //  ClaudeWorkflowActionDecider.swift
-//  leanring-buddy
+//  Perch
 //
 //  The live decision half of the workflow agent loop: one Claude call per
 //  turn through the same Worker /chat proxy the rest of the app uses. The

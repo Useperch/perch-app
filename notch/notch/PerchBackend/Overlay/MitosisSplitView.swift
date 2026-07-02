@@ -1,6 +1,6 @@
 //
 //  MitosisSplitView.swift
-//  leanring-buddy
+//  Perch
 //
 //  The gooey "mitosis" metaball used when a background agent buds off Perch
 //  (spawn) and when it rejoins (merge). Two blobs joined by a liquid bridge

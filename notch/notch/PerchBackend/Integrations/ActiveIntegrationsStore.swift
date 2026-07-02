@@ -1,6 +1,6 @@
 //
 //  ActiveIntegrationsStore.swift
-//  leanring-buddy
+//  Perch
 //
 //  The view model behind the notch Home tab's "Active integrations" row. It is the
 //  single source of truth for two lists the row renders:

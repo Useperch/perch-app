@@ -1,6 +1,6 @@
 //
 //  WorkflowDemonstrationMomentTap.swift
-//  leanring-buddy
+//  Perch
 //
 //  The timeline half of the demonstration recorder: a listen-only CGEvent tap
 //  (same shape as LiveEventSource / the old WorkflowRecorder — it never posts

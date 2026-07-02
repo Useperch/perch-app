@@ -1,6 +1,6 @@
 //
 //  WorkflowShareModels.swift
-//  leanring-buddy
+//  Perch
 //
 //  Pure value types for sharing a workflow playbook between Perch installs:
 //  the link returned by the Worker after an upload, the playbook fetched on

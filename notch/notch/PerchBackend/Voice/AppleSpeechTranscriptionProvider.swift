@@ -1,6 +1,6 @@
 //
 //  AppleSpeechTranscriptionProvider.swift
-//  leanring-buddy
+//  Perch
 //
 //  Local fallback transcription provider backed by Apple's Speech framework.
 //

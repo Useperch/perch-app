@@ -1,6 +1,6 @@
 //
 //  IntentGate.swift
-//  leanring-buddy
+//  Perch
 //
 //  The Intent Gate: the explicit answer / act / clarify split that sits at the
 //  front of every request (docs/VISION.md "one brain, two lanes"; docs/DECISIONS.md

@@ -1,6 +1,6 @@
 //
 //  CompanionManager.swift
-//  leanring-buddy
+//  Perch
 //
 //  Central state manager for the companion voice mode. Owns the push-to-talk
 //  pipeline (dictation manager + global shortcut monitor + overlay) and

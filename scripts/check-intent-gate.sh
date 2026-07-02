@@ -3,8 +3,8 @@
 # Compiles the REAL product source (notch/notch/PerchBackend/Input/IntentGate.swift) together
 # with scripts/intent-gate-check/main.swift and runs the checks.
 #
-# The product source lives in notch/notch/PerchBackend (leanring-buddy was
-# retired); the canonical test cases are leanring-buddyTests/IntentGateTests.swift.
+# The product source lives in notch/notch/PerchBackend (Perch was
+# retired); the canonical test cases are PerchTests/IntentGateTests.swift.
 # Usage: ./scripts/check-intent-gate.sh
 set -euo pipefail
 

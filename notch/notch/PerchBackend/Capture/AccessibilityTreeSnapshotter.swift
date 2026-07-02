@@ -1,6 +1,6 @@
 //
 //  AccessibilityTreeSnapshotter.swift
-//  leanring-buddy
+//  Perch
 //
 //  Captures a bounded snapshot of the focused window's accessibility tree —
 //  the desktop's "DOM" — for the workflow demonstration recorder (grounding

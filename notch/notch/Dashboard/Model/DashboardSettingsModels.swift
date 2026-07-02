@@ -1,6 +1,6 @@
 //
 //  DashboardSettingsModels.swift
-//  leanring-buddy
+//  Perch
 //
 //  Navigation model + the shared, persistent store for the dashboard's settings.
 //

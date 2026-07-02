@@ -8,7 +8,7 @@
 //  sources (WorkflowScheduleModels / WorkflowScheduleStore /
 //  WorkflowShareModels / WorkflowPlaybookStore / …), so it exercises the
 //  actual shipping logic — not a copy. The canonical tests live in
-//  leanring-buddyTests/WorkflowShareAndScheduleTests.swift (run via Xcode ⌘U);
+//  PerchTests/WorkflowShareAndScheduleTests.swift (run via Xcode ⌘U);
 //  this is the CLI mirror for a machine with only Command Line Tools.
 //
 

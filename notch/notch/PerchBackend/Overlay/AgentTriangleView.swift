@@ -1,6 +1,6 @@
 //
 //  AgentTriangleView.swift
-//  leanring-buddy
+//  Perch
 //
 //  One background-agent indicator: a 16pt Perch triangle (same size as the
 //  main cursor) that spawns via a gooey mitosis split, flies to its top-right

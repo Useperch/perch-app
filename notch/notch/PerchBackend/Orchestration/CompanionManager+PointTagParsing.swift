@@ -1,6 +1,6 @@
 //
 //  CompanionManager+PointTagParsing.swift
-//  leanring-buddy
+//  Perch
 //
 //  [POINT:...] tag parsing helpers.
 //  Extracted from CompanionManager.swift to keep that file focused;
