@@ -160,14 +160,14 @@ struct OnboardingView: View {
                 .transition(.opacity)
 
             // MARK: Hands — Accessibility (core; powers the global hotkeys)
+            // Unlike the other permission steps this one only advances once
+            // AXIsProcessTrusted() actually validates (or the user skips) — and
+            // it walks the user through clearing a stale TCC entry left by an
+            // older copy of Perch, the case where Settings shows the toggle ON
+            // but the grant never takes. See AccessibilityPermissionStepView.
             case .accessibilityPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "hand.raised.fill"),
-                    title: "Grant Accessibility Access",
-                    description: "Perch listens for the ⌃⌥ talk shortcut (and double-tap ⌃ to type) system-wide. macOS calls this “Accessibility.” Without it the hotkeys can't work — and macOS won't ask on its own, so grant it here. You may need to relaunch Perch once after granting.",
-                    privacyNote: "Perch only watches for its own shortcut keys to know when you want to talk — it never logs your keystrokes, and nothing is linked to your account.",
-                    onAllow: {
-                        requestAccessibilityPermission()
+                AccessibilityPermissionStepView(
+                    onComplete: {
                         withAnimation(.easeInOut(duration: 0.6)) {
                             step = .calendarPermission
                         }
@@ -290,15 +290,8 @@ struct OnboardingView: View {
         }.value
     }
 
-    /// Hands: the global push-to-talk / double-Control hotkeys. They run off a
-    /// listen-only CGEvent tap that only starts once Accessibility is granted
-    /// (GlobalPushToTalkShortcutMonitor + CompanionManager.refreshAllPermissions).
-    /// This fires the macOS system prompt on the first attempt and falls back to
-    /// opening System Settings on later attempts.
-    @MainActor
-    func requestAccessibilityPermission() {
-        WindowPositionManager.requestAccessibilityPermission()
-    }
+    // Hands (Accessibility) lives in AccessibilityPermissionStepView — it needs
+    // its own request/verify/stale-entry flow rather than fire-and-advance.
 
     func requestCalendarPermission() async {
         _ = try? await calendarService.requestAccess(to: .event)
