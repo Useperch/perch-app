@@ -65,6 +65,19 @@ final class ServiceConnectManager: ServiceConnecting {
         }
     }
 
+    /// Abort an in-flight connect: stop the manifest poll and terminate the OAuth
+    /// helper process. Called when the user dismisses the connect prompt mid-connect
+    /// (the ✕), so a never-completing OAuth stops immediately instead of polling for
+    /// the full 300s timeout. Safe to call when nothing is in flight.
+    func cancel() {
+        pollTask?.cancel()
+        pollTask = nil
+        if let process = connectProcess, process.isRunning {
+            process.terminate()
+        }
+        connectProcess = nil
+    }
+
     // MARK: - Composio OAuth
 
     private func connectComposioToolkit(slug: String, onOutcome: @escaping (Bool) -> Void) {

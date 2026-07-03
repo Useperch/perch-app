@@ -170,6 +170,15 @@ final class CompanionManager: ObservableObject {
     /// chunks from a cancelled response are ignored because their id no longer matches.
     private var streamingAssistantMessageID: UUID?
 
+    /// After the agent finishes ANSWERING a typed message, the notch auto-closes if the
+    /// human doesn't follow up within a short grace window (see
+    /// `scheduleTypedChatAutoDismiss`). Held so a new message / dismiss cancels it.
+    private var typedChatAutoDismissWorkItem: DispatchWorkItem?
+
+    /// How long to wait after a typed answer before auto-dismissing the notch, if the
+    /// human hasn't started a follow-up.
+    private static let typedChatAutoDismissDelaySeconds: TimeInterval = 2.0
+
     /// The currently running AI response task, if any. Cancelled when the user
     /// speaks again so a new response can begin immediately.
     private var currentResponseTask: Task<Void, Never>?
@@ -1290,6 +1299,11 @@ final class CompanionManager: ObservableObject {
         // left covering whatever Perch might point at.
         NotificationCenter.default.post(name: .perchDismissPanel, object: nil)
 
+        // A fresh message IS the human following up — cancel any pending auto-dismiss
+        // armed by the previous answer so the notch stays up for this turn.
+        typedChatAutoDismissWorkItem?.cancel()
+        typedChatAutoDismissWorkItem = nil
+
         // Cancel any in-flight response and TTS from a previous message.
         currentResponseTask?.cancel()
         elevenLabsTTSClient.stopPlayback()
@@ -1633,6 +1647,10 @@ final class CompanionManager: ObservableObject {
                 // reply in the bubble. Voice turns speak it aloud instead.
                 if inputKind == "typed" {
                     finalizeStreamingAssistant(finalText: spokenText)
+                    // A settled Q&A: close the notch shortly if the human doesn't follow
+                    // up. Only the ANSWER lane — a background task or clarify keeps the
+                    // notch up (the dismiss also guards on that).
+                    scheduleTypedChatAutoDismiss()
                 }
 
                 // Play the response via TTS. Keep the spinner (processing state)
@@ -1842,8 +1860,42 @@ final class CompanionManager: ObservableObject {
     /// Clear the whole typed-chat thread (on composer dismiss). Leaves
     /// `conversationHistory` alone so the model keeps its short-term memory.
     func clearTypedChat() {
+        typedChatAutoDismissWorkItem?.cancel()
+        typedChatAutoDismissWorkItem = nil
         typedChatMessages = []
         streamingAssistantMessageID = nil
+    }
+
+    /// Arm the post-answer auto-dismiss: after a typed answer settles, close the notch
+    /// once the grace window passes with no follow-up from the human. Any new message
+    /// cancels it (see `sendTypedMessage`); the fire-time guard re-checks that the human
+    /// hasn't started composing and that nothing else needs the notch.
+    private func scheduleTypedChatAutoDismiss() {
+        typedChatAutoDismissWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.dismissTypedChatIfHumanIdle()
+        }
+        typedChatAutoDismissWorkItem = workItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.typedChatAutoDismissDelaySeconds, execute: workItem
+        )
+    }
+
+    /// Close the notch after a settled typed Q&A — but only if the human truly went
+    /// idle and nothing else is using the surface. Bails (leaving the notch up) if the
+    /// composer already closed, the human started typing / staged an attachment, a
+    /// reply is still streaming, a background task is running, or a connect card is up.
+    private func dismissTypedChatIfHumanIdle() {
+        typedChatAutoDismissWorkItem = nil
+        let composer = NotchTextInputController.shared
+        guard composer.isActive,
+              composer.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              composer.attachments.isEmpty,
+              !(typedChatMessages.last?.isStreaming ?? false),
+              !isBrowserSubagentWorking,
+              serviceConnectionOfferCoordinator.currentOffer == nil else { return }
+        composer.dismiss()
+        NotificationCenter.default.post(name: .perchDismissPanel, object: nil)
     }
 
     /// Speaks a reply via ElevenLabs TTS, keeping the spinner (processing state)

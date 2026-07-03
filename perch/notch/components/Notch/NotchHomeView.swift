@@ -467,6 +467,15 @@ struct NotchHomeView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         // simplified: use a straightforward opacity transition
         .transition(.opacity)
+        // Auto-open the notch when a running task needs a connection, so the connect
+        // card is visible immediately instead of collapsed in the closed notch. Only
+        // for agent-driven requests (a blocking gate the user's task depends on) — a
+        // proactive "connect this?" nag must never force the notch open.
+        .onChange(of: currentConnectionOffer) { _, newOffer in
+            if newOffer != nil, serviceConnectionOfferCoordinator.isCurrentOfferAgentDriven {
+                vm.open()
+            }
+        }
     }
 
     private var shouldShowCamera: Bool {
@@ -534,6 +543,9 @@ struct NotchHomeView: View {
                         },
                         onDecline: {
                             serviceConnectionOfferCoordinator.dismissCurrentOffer()
+                        },
+                        onDismiss: {
+                            serviceConnectionOfferCoordinator.cancelCurrentOffer()
                         }
                     )
                     .frame(width: offerBandWidth, height: geometry.size.height)
@@ -943,6 +955,9 @@ struct NotchConnectionOfferContentView: View {
     var onConnect: () -> Void
     /// "Not now" — decline; the paused task falls back to driving the site itself.
     var onDecline: () -> Void
+    /// The top-right ✕ — hard-dismiss at ANY state, including cancelling an in-flight
+    /// connect (so a stuck/never-finishing OAuth doesn't trap the surface up).
+    var onDismiss: () -> Void
 
     @ObservedObject private var musicManager = MusicManager.shared
 
@@ -1006,6 +1021,25 @@ struct NotchConnectionOfferContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        // ✕ dismiss — always available, at every connect state. Unlike "Not now"
+        // (idle-only), this also aborts an in-flight connect so a stuck OAuth that
+        // never lands can be dismissed instead of polling for the full timeout.
+        .overlay(alignment: .topTrailing) {
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(Color(white: 0.62))
+                    .frame(width: 18, height: 18)
+                    .background(Circle().fill(Color(white: 0.20)))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+            .accessibilityLabel("Dismiss")
+            .onHover { isHovering in
+                if isHovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+        }
     }
 
     private var headerText: String {
