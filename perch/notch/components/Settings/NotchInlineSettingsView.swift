@@ -117,6 +117,7 @@ private struct PlanStatusRow: View {
     // The app-side mirror of the Worker's entitlement (plan + this month's usage).
     @ObservedObject private var identity = PerchInstallIdentity.shared
     @State private var isStartingCheckout = false
+    @State private var isStartingPortal = false
 
     private var isPro: Bool { identity.entitlement.isPro }
 
@@ -133,7 +134,9 @@ private struct PlanStatusRow: View {
         // month's usage count on the right. Kept compact so the block fits the
         // notch's fixed height.
         HStack(alignment: .center, spacing: 10) {
-            if !isPro {
+            if isPro {
+                InlineManageButton(isStarting: isStartingPortal, action: startManage)
+            } else {
                 InlineUpgradeButton(isStarting: isStartingCheckout, action: startCheckout)
             }
 
@@ -164,6 +167,15 @@ private struct PlanStatusRow: View {
         Task {
             _ = await PerchBilling.startUpgradeCheckout()
             isStartingCheckout = false
+        }
+    }
+
+    private func startManage() {
+        guard !isStartingPortal else { return }
+        isStartingPortal = true
+        Task {
+            _ = await PerchBilling.startManageBilling()
+            isStartingPortal = false
         }
     }
 }
@@ -205,6 +217,45 @@ private struct InlineUpgradeButton: View {
         .disabled(isStarting)
         .onHover { isHovering = $0 }
         .help("$20/mo — unlimited messages, voice or text")
+    }
+}
+
+// MARK: - Manage CTA
+// The Pro counterpart to the upgrade chip: same pill language, but neutral (white)
+// rather than accent — managing an existing plan shouldn't shout like a sell.
+
+private struct InlineManageButton: View {
+    let isStarting: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Text(isStarting ? "Opening…" : "Manage")
+                    .font(.system(size: 12, weight: .semibold))
+                if !isStarting {
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 10, weight: .bold))
+                }
+            }
+            .foregroundColor(.white.opacity(0.85))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color.white.opacity(isHovering ? 0.16 : 0.09))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color.white.opacity(0.22), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isStarting)
+        .onHover { isHovering = $0 }
+        .help("Manage or cancel your subscription")
     }
 }
 

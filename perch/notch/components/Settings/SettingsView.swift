@@ -1711,6 +1711,8 @@ struct AccountSettings: View {
     @ObservedObject private var identity = PerchInstallIdentity.shared
     @State private var isStartingCheckout = false
     @State private var checkoutMessage: String?
+    @State private var isStartingPortal = false
+    @State private var portalMessage: String?
 
     private var companionUsed: Int {
         identity.entitlement.usage[PerchFeature.companion.rawValue] ?? 0
@@ -1769,6 +1771,34 @@ struct AccountSettings: View {
             }
         } header: {
             Text("Usage")
+        }
+
+        Section {
+            Button(action: startManage) {
+                HStack(spacing: 6) {
+                    Spacer()
+                    if isStartingPortal {
+                        Text("Opening…")
+                    } else {
+                        Text("Manage subscription").fontWeight(.semibold)
+                        Image(systemName: "arrow.up.right")
+                    }
+                    Spacer()
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(isStartingPortal)
+
+            if let portalMessage {
+                Text(portalMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        } footer: {
+            Text("Opens the Stripe billing portal in your browser to update payment, view invoices, or cancel.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -1858,6 +1888,18 @@ struct AccountSettings: View {
             isStartingCheckout = false
             if !started {
                 checkoutMessage = "Upgrades aren't available right now. Please try again later."
+            }
+        }
+    }
+
+    private func startManage() {
+        isStartingPortal = true
+        portalMessage = nil
+        Task {
+            let opened = await PerchBilling.startManageBilling()
+            isStartingPortal = false
+            if !opened {
+                portalMessage = "Couldn't open the billing portal. Please try again later."
             }
         }
     }

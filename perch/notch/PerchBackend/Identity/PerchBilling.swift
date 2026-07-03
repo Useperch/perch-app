@@ -56,6 +56,43 @@ enum PerchBilling {
         }
     }
 
+    /// Opens the Stripe billing portal for this install's account so a Pro user can
+    /// manage or cancel their subscription. The Worker resolves the install's linked
+    /// Stripe customer (via Supabase) and returns the hosted portal URL. Returns false
+    /// if the portal couldn't be opened (billing off, or no linked subscription yet).
+    @MainActor
+    static func startManageBilling() async -> Bool {
+        guard let url = URL(string: "\(workerBaseURL)/billing/portal") else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+        if let installToken = PerchInstallIdentity.currentInstallToken() {
+            request.setValue(installToken, forHTTPHeaderField: "X-Perch-Install-Token")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let portalURLString = json["url"] as? String,
+                  let portalURL = URL(string: portalURLString) else {
+                return false
+            }
+            NSWorkspace.shared.open(portalURL)
+            // A cancellation lands via the subscription webhook, so refresh the
+            // entitlement for a short window to reflect any plan change here.
+            scheduleEntitlementRefresh()
+            return true
+        } catch {
+            perchDebugLog("billing: portal error \(error.localizedDescription)")
+            return false
+        }
+    }
+
     /// Polls the entitlement for a short window after checkout so the app reflects
     /// the upgrade as soon as the webhook lands.
     @MainActor
