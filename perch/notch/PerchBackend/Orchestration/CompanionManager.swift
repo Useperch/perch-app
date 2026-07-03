@@ -170,6 +170,15 @@ final class CompanionManager: ObservableObject {
     /// chunks from a cancelled response are ignored because their id no longer matches.
     private var streamingAssistantMessageID: UUID?
 
+    /// After the agent finishes ANSWERING a typed message, the notch auto-closes if the
+    /// human doesn't follow up within a short grace window (see
+    /// `scheduleTypedChatAutoDismiss`). Held so a new message / dismiss cancels it.
+    private var typedChatAutoDismissWorkItem: DispatchWorkItem?
+
+    /// How long to wait after a typed answer before auto-dismissing the notch, if the
+    /// human hasn't started a follow-up.
+    private static let typedChatAutoDismissDelaySeconds: TimeInterval = 2.0
+
     /// The currently running AI response task, if any. Cancelled when the user
     /// speaks again so a new response can begin immediately.
     private var currentResponseTask: Task<Void, Never>?
@@ -1218,26 +1227,37 @@ final class CompanionManager: ObservableObject {
     - user (missing target): "book me a flight": "[CLARIFY:sure — where to, and what day?]"
     """
 
-    /// A system-prompt suffix that tells the intent gate which apps the user has
-    /// connected, so a question about THEIR data in a connected app routes to a DO
-    /// background task (which reaches that data through the app's API) instead of the
-    /// model declining with "i can't see your github". Returns "" when nothing is
-    /// connected, leaving the base prompt unchanged.
+    /// A system-prompt suffix that tells the intent gate a question about the user's
+    /// data in an ONLINE ACCOUNT (email, calendar, GitHub, Slack, …) is a DO background
+    /// task — the background agent reaches that data through the app's API, and if the
+    /// app isn't linked yet it pops the in-notch connect card and offers to link it.
     ///
-    /// The connected toolkits come from the sidecar's capability manifest (read here
-    /// without spawning the sidecar) — so this stays correct as the user connects or
-    /// disconnects apps, with no per-service hardcoding.
+    /// This is ALWAYS emitted, whether or not anything is connected. It used to go silent
+    /// with an empty connected set, which made a query like "how many events did I have on
+    /// Outlook last week" fall through to SHOW — the model just pointed at the app on
+    /// screen and never routed to the agent, so the connect card never had a chance to
+    /// fire. Routing must not depend on the app already being connected: the agent can
+    /// connect it on demand, so the clause covers connected AND connectable-but-unlinked
+    /// apps uniformly (no per-service hardcoding — the connected list is read from the
+    /// sidecar's capability manifest without spawning the sidecar).
     private func connectedAccountsPromptClause() -> String {
         let connectedSlugs = composioManifestReader.currentState().connectedToolkitSlugs
-        guard !connectedSlugs.isEmpty else { return "" }
-        let appList = connectedSlugs.sorted().joined(separator: ", ")
+        let connectedLine: String
+        if connectedSlugs.isEmpty {
+            connectedLine =
+                "no apps are linked yet, but you can STILL act on the user's online accounts — the background agent pops a connect card and links the app the first time it's needed."
+        } else {
+            connectedLine =
+                "already linked (the agent can act on these right now): \(connectedSlugs.sorted().joined(separator: ", ")). any other app can be linked on demand the same way."
+        }
         return """
 
 
-        connected accounts — the user has connected these apps to perch, and a background agent can act on their REAL data in them through each app's API (no screen needed): \(appList).
-        - when the user asks about THEIR data in one of these apps (how many, list, find, look up, check, who/what/when, or any change), that is a DO task: hand it to the background agent, which calls the app's API and reports back — even though you have no screenshot this turn. give a short confirmation then the [BACKGROUND_TASK:...] tag.
-        - NEVER tell the user you can't see or access one of these connected accounts — you CAN, through the background agent. route it to DO instead of declining.
-        - example — user: "how many repos do i have on github" (github connected): "on it, checking your github! [BACKGROUND_TASK:count how many repositories the user owns on their connected GitHub account]"
+        online accounts — the user has online accounts and apps (email, calendar, GitHub, Notion, Slack, and the like) that a background agent can act on through each app's API, no screen needed. \(connectedLine)
+        - when the user asks about THEIR data in any such app (how many, list, find, look up, check, who/what/when, or any change) — their calendar, email, repos, and so on — that is a DO task: hand it to the background agent with a [BACKGROUND_TASK:...] tag, even with NO screenshot this turn and EVEN IF the app isn't linked yet. if it isn't linked, the agent pops a connect card, offers to link it, then fetches the data.
+        - do NOT answer these as a SHOW, do NOT point at an app that happens to be open on screen, and do NOT tell the user you can't see or access their account — route it to DO instead of declining.
+        - example — user: "how many repos do i have on github": "on it, checking your github! [BACKGROUND_TASK:count how many repositories the user owns on their connected GitHub account]"
+        - example — user: "how many events did i have on outlook last week": "on it, checking your outlook calendar! [BACKGROUND_TASK:count how many events the user had on their Outlook calendar last week]"
         """
     }
 
@@ -1278,6 +1298,11 @@ final class CompanionManager: ObservableObject {
         // Dismiss the menu bar panel so it isn't captured in the screenshot or
         // left covering whatever Perch might point at.
         NotificationCenter.default.post(name: .perchDismissPanel, object: nil)
+
+        // A fresh message IS the human following up — cancel any pending auto-dismiss
+        // armed by the previous answer so the notch stays up for this turn.
+        typedChatAutoDismissWorkItem?.cancel()
+        typedChatAutoDismissWorkItem = nil
 
         // Cancel any in-flight response and TTS from a previous message.
         currentResponseTask?.cancel()
@@ -1382,12 +1407,12 @@ final class CompanionManager: ObservableObject {
 
                 guard !Task.isCancelled else { return }
 
-                // Make the intent gate aware of the user's connected accounts, so a
-                // question about THEIR data in a connected app (e.g. "how many repos
-                // do I have on GitHub") routes to a DO background task — which reaches
-                // that data through the app's API — instead of being declined with
-                // "i can't see your github". Empty when nothing is connected, leaving
-                // the base prompt unchanged.
+                // Make the intent gate treat a question about the user's data in an
+                // online account (e.g. "how many repos do I have on GitHub", "how many
+                // events did I have on Outlook last week") as a DO background task — which
+                // reaches that data through the app's API, connecting the app first if
+                // needed — instead of answering it as a SHOW or declining. Always present
+                // now (covers connected AND not-yet-connected apps).
                 let connectedAccountsClause = connectedAccountsPromptClause()
                 let voiceSystemPrompt =
                     Self.companionVoiceResponseSystemPrompt + connectedAccountsClause
@@ -1622,6 +1647,10 @@ final class CompanionManager: ObservableObject {
                 // reply in the bubble. Voice turns speak it aloud instead.
                 if inputKind == "typed" {
                     finalizeStreamingAssistant(finalText: spokenText)
+                    // A settled Q&A: close the notch shortly if the human doesn't follow
+                    // up. Only the ANSWER lane — a background task or clarify keeps the
+                    // notch up (the dismiss also guards on that).
+                    scheduleTypedChatAutoDismiss()
                 }
 
                 // Play the response via TTS. Keep the spinner (processing state)
@@ -1831,8 +1860,42 @@ final class CompanionManager: ObservableObject {
     /// Clear the whole typed-chat thread (on composer dismiss). Leaves
     /// `conversationHistory` alone so the model keeps its short-term memory.
     func clearTypedChat() {
+        typedChatAutoDismissWorkItem?.cancel()
+        typedChatAutoDismissWorkItem = nil
         typedChatMessages = []
         streamingAssistantMessageID = nil
+    }
+
+    /// Arm the post-answer auto-dismiss: after a typed answer settles, close the notch
+    /// once the grace window passes with no follow-up from the human. Any new message
+    /// cancels it (see `sendTypedMessage`); the fire-time guard re-checks that the human
+    /// hasn't started composing and that nothing else needs the notch.
+    private func scheduleTypedChatAutoDismiss() {
+        typedChatAutoDismissWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.dismissTypedChatIfHumanIdle()
+        }
+        typedChatAutoDismissWorkItem = workItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Self.typedChatAutoDismissDelaySeconds, execute: workItem
+        )
+    }
+
+    /// Close the notch after a settled typed Q&A — but only if the human truly went
+    /// idle and nothing else is using the surface. Bails (leaving the notch up) if the
+    /// composer already closed, the human started typing / staged an attachment, a
+    /// reply is still streaming, a background task is running, or a connect card is up.
+    private func dismissTypedChatIfHumanIdle() {
+        typedChatAutoDismissWorkItem = nil
+        let composer = NotchTextInputController.shared
+        guard composer.isActive,
+              composer.draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              composer.attachments.isEmpty,
+              !(typedChatMessages.last?.isStreaming ?? false),
+              !isBrowserSubagentWorking,
+              serviceConnectionOfferCoordinator.currentOffer == nil else { return }
+        composer.dismiss()
+        NotificationCenter.default.post(name: .perchDismissPanel, object: nil)
     }
 
     /// Speaks a reply via ElevenLabs TTS, keeping the spinner (processing state)

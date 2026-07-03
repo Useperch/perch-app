@@ -74,6 +74,15 @@ protocol ServiceConnecting: AnyObject {
     /// Begin connecting `offer`; call `onOutcome(true)` on success, `false` on
     /// failure/timeout. Always called on the main actor.
     func connect(_ offer: ServiceConnectionOffer, onOutcome: @escaping (Bool) -> Void)
+
+    /// Abort an in-flight connect: stop polling and tear down the OAuth helper, so a
+    /// user-dismissed connect doesn't keep running for the full timeout. Optional —
+    /// defaults to a no-op for connectors with nothing to cancel.
+    func cancel()
+}
+
+extension ServiceConnecting {
+    func cancel() {}
 }
 
 @MainActor
@@ -250,6 +259,32 @@ final class ServiceConnectionOfferCoordinator: ObservableObject {
             appIconBundleIdentifierForTile: entry.appIconBundleIdentifierForTile
         )
         connectState = .idle
+    }
+
+    /// Whether the current offer is a blocking agent request (a task is paused on it)
+    /// rather than a proactive "connect this?" nag. Drives the notch auto-open — only
+    /// an agent request, which the user's task depends on, is allowed to force the
+    /// notch open. True exactly while an agent continuation is pending.
+    var isCurrentOfferAgentDriven: Bool { agentRequestResolution != nil }
+
+    /// Hard-dismiss the current offer at ANY connect state — the surface's ✕. Unlike
+    /// `dismissCurrentOffer` (idle-only "Not now"), this also aborts an in-flight
+    /// connect (cancelling the poll + OAuth helper), so the user is never trapped
+    /// watching a connect that will never finish. An agent request resolves `false`
+    /// (the task falls back to the web lane); a proactive nag is snoozed so the ✕
+    /// doesn't just re-fire on the next context tick.
+    func cancelCurrentOffer() {
+        guard let offer = currentOffer else { return }
+        if connectState == .connecting {
+            connector.cancel()
+        }
+        if agentRequestResolution != nil {
+            resolveAgentRequestIfNeeded(false)
+        } else {
+            snoozedStore.recordSnoozed(offer.toolkitSlug)
+        }
+        connectState = .idle
+        currentOffer = nil
     }
 
     /// Fires (and clears) the agent-request continuation, if the current offer is
