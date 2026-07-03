@@ -1057,6 +1057,10 @@ final class CompanionManager: ObservableObject {
                 didSucceed: false,
                 summary: "the agent hit an error and stopped"
             )
+        } else if newState == .needsInput {
+            // The run ended by asking the user something — speak the question (never an
+            // "all done" wrap-up). The user answers on their next voice/typed turn.
+            announceNeedsInputQuestion(for: finishedOrWorkingRun)
         }
 
         // Drop this run's subscription and remove it from the registry.
@@ -2129,16 +2133,6 @@ final class CompanionManager: ObservableObject {
     /// user is mid-conversation — speaks the wrap-up aloud. Scoped to the finished
     /// run so concurrent agents each announce their own completion.
     private func announceBackgroundTaskCompletion(for finishedRun: BrowserSubagentRun) {
-        // Make sure the cursor is on screen so the result bubble is visible,
-        // even if "Show Perch" is off and the overlay had faded out.
-        transientHideTask?.cancel()
-        transientHideTask = nil
-        if !isOverlayVisible {
-            overlayWindowManager.hasShownOverlayBefore = true
-            overlayWindowManager.showOverlay(onScreens: NSScreen.screens, companionManager: self)
-            isOverlayVisible = true
-        }
-
         let completionMessage = backgroundTaskCompletionMessage(for: finishedRun)
         PerchRunLog.append(finishedRun.runDocument, .action, "background task completed: \(completionMessage)")
 
@@ -2159,9 +2153,39 @@ final class CompanionManager: ObservableObject {
             summary: completionMessage
         )
 
+        presentAndSpeakCompanionLine(completionMessage, runDocument: finishedRun.runDocument)
+    }
+
+    /// The run ended by asking the user a free-form question (the sidecar's ask_user).
+    /// Speak the question as a QUESTION — never an "all done" wrap-up — and do NOT record
+    /// it as a completed run in history (it isn't finished; the user answers next turn).
+    private func announceNeedsInputQuestion(for finishedRun: BrowserSubagentRun) {
+        let trimmedQuestion = finishedRun.resultSummary?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let question = (trimmedQuestion?.isEmpty == false)
+            ? trimmedQuestion!
+            : "What would you like me to do?"
+        PerchRunLog.append(finishedRun.runDocument, .action, "needs input (spoken): \(question)")
+        presentAndSpeakCompanionLine(question, runDocument: finishedRun.runDocument)
+    }
+
+    /// Shared tail for a companion line the app both shows (result bubble) and speaks
+    /// (TTS): surfaces the overlay if hidden, shows the auto-dismissing bubble, and — if
+    /// Perch isn't mid-voice-interaction — speaks it and manages `voiceState`.
+    private func presentAndSpeakCompanionLine(_ message: String, runDocument: PerchRunLog.RunDocument?) {
+        // Make sure the cursor is on screen so the result bubble is visible,
+        // even if "Show Perch" is off and the overlay had faded out.
+        transientHideTask?.cancel()
+        transientHideTask = nil
+        if !isOverlayVisible {
+            overlayWindowManager.hasShownOverlayBefore = true
+            overlayWindowManager.showOverlay(onScreens: NSScreen.screens, companionManager: self)
+            isOverlayVisible = true
+        }
+
         // Show the result bubble and schedule it to auto-dismiss.
         backgroundTaskCompletionClearTask?.cancel()
-        backgroundTaskCompletionText = completionMessage
+        backgroundTaskCompletionText = message
         backgroundTaskCompletionClearTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             guard !Task.isCancelled else { return }
@@ -2169,25 +2193,23 @@ final class CompanionManager: ObservableObject {
             self?.scheduleTransientHideIfNeeded()
         }
 
-        PerchAnalytics.trackAIResponseReceived(response: completionMessage)
+        PerchAnalytics.trackAIResponseReceived(response: message)
 
         // Don't talk over an in-flight voice interaction — only speak the
-        // wrap-up when Perch is otherwise idle.
+        // line when Perch is otherwise idle.
         let isBusyWithVoice = voiceState != .idle || elevenLabsTTSClient.isPlaying
         guard !isBusyWithVoice else { return }
 
-        let completionRunDocument = finishedRun.runDocument
         Task { @MainActor [weak self] in
             guard let self else { return }
-            PerchRunLog.append(completionRunDocument, .speak, completionMessage)
+            PerchRunLog.append(runDocument, .speak, message)
             do {
-                try await self.elevenLabsTTSClient.speakText(completionMessage)
+                try await self.elevenLabsTTSClient.speakText(message)
                 // `speakText` returns as soon as audio STARTS, so show "Speaking"
                 // while it plays, then return to idle once playback finishes.
                 // Unlike the push-to-talk paths, nothing else resets this state
-                // (the voiceState observer leaves `.responding` untouched), so the
-                // completion path MUST clear it itself or the notch sticks on
-                // "Speaking" forever.
+                // (the voiceState observer leaves `.responding` untouched), so this
+                // path MUST clear it itself or the notch sticks on "Speaking" forever.
                 self.voiceState = .responding
                 while self.elevenLabsTTSClient.isPlaying {
                     try? await Task.sleep(nanoseconds: 200_000_000)
@@ -2200,8 +2222,8 @@ final class CompanionManager: ObservableObject {
                 self.scheduleTransientHideIfNeeded()
             } catch {
                 PerchAnalytics.trackTTSError(error: error.localizedDescription)
-                PerchRunLog.append(completionRunDocument, .error, "completion TTS failed: \(error)")
-                print("⚠️ ElevenLabs TTS error (completion): \(error)")
+                PerchRunLog.append(runDocument, .error, "companion TTS failed: \(error)")
+                print("⚠️ ElevenLabs TTS error (companion line): \(error)")
                 if self.voiceState == .responding {
                     self.voiceState = .idle
                 }

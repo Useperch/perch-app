@@ -98,12 +98,18 @@ fi
 plist_set BrowserSubagentPath        "${SIDECAR_DIR}"
 plist_set BrowserSubagentSocketPath  "${REPO_DIR}/support/ipc/subagent.sock"
 
-# Optional: point the dev build at a LOCAL worker (e.g. backend-dev-work's
+# Optional: point the dev build at a LOCAL worker (the backend worktree's
 # local_dev_server.py on http://localhost:8787) instead of the prod Cloudflare
 # worker. Set PERCH_WORKER_BASE_URL to override just the built bundle — the
 # committed Info.plist stays pointed at prod. Unset → prod (default).
 if [ -n "${PERCH_WORKER_BASE_URL:-}" ]; then
     plist_set WorkerBaseURL "${PERCH_WORKER_BASE_URL}"
+    # TranscribeTokenURL is a full path, not a base, and is read independently of
+    # WorkerBaseURL (AssemblyAIStreamingTranscriptionProvider). Point it at the same
+    # local worker so push-to-talk mints its token there too — otherwise the app
+    # registers locally (dev-install-token) but fetches the transcribe token from
+    # prod, which rejects that token with 401 and ⌃⌥ never starts listening.
+    plist_set TranscribeTokenURL "${PERCH_WORKER_BASE_URL}/transcribe-token"
     echo "   worker:    ${PERCH_WORKER_BASE_URL} (override)"
 else
     echo "   worker:    $(/usr/libexec/PlistBuddy -c 'Print :WorkerBaseURL' "${PLIST}") (prod default)"

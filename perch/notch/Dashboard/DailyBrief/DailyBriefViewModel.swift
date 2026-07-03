@@ -96,7 +96,10 @@ final class DailyBriefViewModel: ObservableObject {
         isSynthesizing = true
 
         async let calendarItemsTask = Self.fetchItems(provider: .calendar, query: "today's events", limit: 12)
-        async let emailItemsTask = Self.fetchItems(provider: .email, query: "important unread emails today", limit: 10)
+        // Gmail's `q` param is search-operator syntax, not natural language — a plain
+        // phrase like "important unread emails today" is matched as literal keywords and
+        // returns nothing. Use real operators so the brief sees today's priority unread.
+        async let emailItemsTask = Self.fetchItems(provider: .email, query: "is:important is:unread newer_than:1d", limit: 10)
         var calendarItems = await calendarItemsTask
         let emailItems = await emailItemsTask
 

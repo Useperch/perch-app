@@ -485,6 +485,16 @@ final class BrowserSubagentManager: ObservableObject {
             activeRun.desktopTool.endClipboardRun()
             releaseDesktopActuationLockIfHeld(by: subagentId)
 
+        case let .needsInput(subagentId, question):
+            // The run ended by asking the user a free-form question — NOT a completion.
+            // Move the run to the terminal `.needsInput` state; `CompanionManager` speaks
+            // the question (never an "all done" wrap-up) and prunes the run.
+            guard let activeRun = run(for: subagentId) else { return }
+            PerchRunLog.append(activeRun.runDocument, .action, "subagent needs input: \(question)")
+            activeRun.applyNeedsInput(question: question)
+            activeRun.desktopTool.endClipboardRun()
+            releaseDesktopActuationLockIfHeld(by: subagentId)
+
         case let .desktopPerceive(subagentId, requestId):
             // Perceiving and actuating are async; answer on a detached task so the
             // event-consumption loop keeps draining (and a slow app can't stall it).

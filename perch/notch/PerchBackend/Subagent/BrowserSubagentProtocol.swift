@@ -53,6 +53,10 @@ enum BrowserSubagentEventMethod {
     static let connectionRequired = "subagent.connectionRequired"
     static let done = "subagent.done"
     static let error = "subagent.error"
+    // The model needs a free-form answer from the user before it can finish (the
+    // ask_user tool). Unlike `done` this makes no completion claim (params carry
+    // "question"). The app speaks the question; the user replies on their next turn.
+    static let needsInput = "subagent.needsInput"
     // A desktop step's two callbacks DOWN from the sidecar: PERCEIVE the focused
     // native app (answer with desktopPerceiveResult) and ACT one already-decided,
     // already-gated structured action (answer with desktopActionResult).
@@ -84,6 +88,10 @@ enum BrowserSubagentState: String {
     case handoff
     case done
     case error
+    // The run ended by asking the user a free-form question (the sidecar's ask_user).
+    // A local-only state the app assigns when it receives a `subagent.needsInput`
+    // event; the sidecar reports it as that event, not as a `subagent.state`.
+    case needsInput = "needs_input"
 
     /// Human-readable label shown in the preview panel's status badge.
     var displayName: String {
@@ -96,6 +104,7 @@ enum BrowserSubagentState: String {
         case .handoff: return "Opening window"
         case .done: return "Done"
         case .error: return "Error"
+        case .needsInput: return "Needs you"
         }
     }
 }
@@ -111,6 +120,9 @@ enum BrowserSubagentEvent {
     case connectionRequired(subagentId: String, toolkitSlugs: [String])
     case done(subagentId: String, handoffWindowReady: Bool, finalUrl: String?, resultSummary: String?, deliverableLabel: String?)
     case error(subagentId: String, message: String)
+    // The task needs a free-form answer from the user (ask_user). The app speaks the
+    // question and ends the run without claiming completion.
+    case needsInput(subagentId: String, question: String)
     // Desktop step callbacks. The sidecar asks the app to perceive the focused
     // native app, then to actuate one decided action; the app answers each with
     // the matching desktop*Result request, echoing requestId.
@@ -183,6 +195,10 @@ enum BrowserSubagentEvent {
         case BrowserSubagentEventMethod.error:
             let message = params["message"] as? String ?? "unknown error"
             return .error(subagentId: subagentId, message: message)
+
+        case BrowserSubagentEventMethod.needsInput:
+            let question = params["question"] as? String ?? "What would you like me to do?"
+            return .needsInput(subagentId: subagentId, question: question)
 
         case BrowserSubagentEventMethod.desktopPerceive:
             guard let requestId = params["requestId"] as? String else { return nil }

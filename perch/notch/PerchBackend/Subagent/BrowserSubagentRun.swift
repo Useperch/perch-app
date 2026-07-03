@@ -112,7 +112,7 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
         switch subagentState {
         case .spawning, .loginGate, .working, .completing, .handoff:
             return true
-        case .idle, .done, .error:
+        case .idle, .done, .error, .needsInput:
             return false
         }
     }
@@ -121,7 +121,7 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
     /// `CompanionManager` runs the merge-away animation + completion wrap-up.
     var isTerminal: Bool {
         switch subagentState {
-        case .done, .error:
+        case .done, .error, .needsInput:
             return true
         case .idle, .spawning, .loginGate, .working, .completing, .handoff:
             return false
@@ -238,6 +238,16 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
     func markErrored() {
         subagentState = .error
         appendStep("Error")
+    }
+
+    /// The run ended by asking the user a free-form question (the sidecar's ask_user).
+    /// Stores the question in `resultSummary` (the field the completion wrap-up reads)
+    /// and moves to the terminal `.needsInput` state; `CompanionManager` speaks the
+    /// question instead of an "all done" wrap-up.
+    func applyNeedsInput(question: String) {
+        self.resultSummary = question
+        subagentState = .needsInput
+        appendStep("Needs you")
     }
 }
 

@@ -179,6 +179,14 @@ final class BrowserSubagentProcessSupervisor {
         if sidecarDirectory.hasPrefix(Bundle.main.bundlePath) {
             environment["PERCH_SIDECAR_STATE_DIR"] = PerchSupportPaths.directory("sidecar").path
         }
+
+        // Force the sidecar (Python) to use the exact same support directory the
+        // app uses for composio-manifest.json, agent-runs.json, ipc socket, etc.
+        // This is required so that active Composio connections (written by the
+        // sidecar via build_manifest/save_manifest) are visible to
+        // ComposioManifestReader + ActiveIntegrationsStore in the notch UI.
+        environment["PERCH_SUPPORT_DIRECTORY"] = PerchSupportPaths.supportDirectoryURL.path
+
         process.environment = environment
 
         // Redirect the sidecar's stdout + stderr to a log file so launch
