@@ -73,6 +73,7 @@
 		EE11AC0DE000000000000004 /* OTPVerificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE11AC0DE000000000000003 /* OTPVerificationView.swift */; };
 		11CFC65F2E097F2F00748C80 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC65E2E097F2100748C80 /* OnboardingView.swift */; };
 		11CFC6612E097F6800748C80 /* PermissionsRequestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */; };
+		A1B2C3D42E0A0002AA000002 /* AccessibilityPermissionStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42E0A0001AA000001 /* AccessibilityPermissionStepView.swift */; };
 		11CFC6632E09918400748C80 /* MusicControllerSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */; };
 		A1B2C3D40000000000000002 /* HotkeyTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */; };
 		11CFC6652E09C7B300748C80 /* OnboardingFinishView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11CFC6642E09C7B300748C80 /* OnboardingFinishView.swift */; };
@@ -258,6 +259,7 @@
 		EE11AC0DE000000000000003 /* OTPVerificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTPVerificationView.swift; sourceTree = "<group>"; };
 		11CFC65E2E097F2100748C80 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsRequestView.swift; sourceTree = "<group>"; };
+		A1B2C3D42E0A0001AA000001 /* AccessibilityPermissionStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermissionStepView.swift; sourceTree = "<group>"; };
 		11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicControllerSelectionView.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyTutorialView.swift; sourceTree = "<group>"; };
 		11CFC6642E09C7B300748C80 /* OnboardingFinishView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFinishView.swift; sourceTree = "<group>"; };
@@ -703,6 +705,7 @@
 				A1B2C3D40000000000000001 /* HotkeyTutorialView.swift */,
 				11CFC6622E09917B00748C80 /* MusicControllerSelectionView.swift */,
 				11CFC6602E097F6800748C80 /* PermissionsRequestView.swift */,
+				A1B2C3D42E0A0001AA000001 /* AccessibilityPermissionStepView.swift */,
 				11CFC65E2E097F2100748C80 /* OnboardingView.swift */,
 				11CFC65A2E097E9D00748C80 /* WelcomeView.swift */,
 				EE11AC0DE000000000000001 /* EmailVerificationView.swift */,
@@ -1082,6 +1085,7 @@
 				14FC6E502C7DED5600C7BEA5 /* DataTypes+Extensions.swift in Sources */,
 				1153BD982D9881F900979FB0 /* AppleScriptHelper.swift in Sources */,
 				11CFC6612E097F6800748C80 /* PermissionsRequestView.swift in Sources */,
+				A1B2C3D42E0A0002AA000002 /* AccessibilityPermissionStepView.swift in Sources */,
 				14D570D22C5F6C6A0011E668 /* ExtrasMenu.swift in Sources */,
 				11D58EA22E760AE100FA8377 /* ImageService.swift in Sources */,
 				11F748822ECB07A400F841DB /* MusicControlButton.swift in Sources */,
