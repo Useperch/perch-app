@@ -806,16 +806,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         NSApp.setActivationPolicy(.accessory)
                         NSApp.deactivate()
 
-                        // If the user granted Screen Recording during onboarding, macOS
-                        // only honors it on the next launch. Relaunch once now so their
-                        // first prompt captures the screen silently, instead of hitting
-                        // the relaunch card (or the raw system prompt) on first use.
-                        // After the relaunch the Screen Recording grant is live, so the
-                        // startup warm-up capture fires macOS 15/26's second consent
-                        // ("bypass the private window picker") in-context on its own —
-                        // it no longer needs to be queued from here.
-                        if WindowPositionManager.shouldRelaunchAfterOnboardingToActivateScreenRecording() {
-                            WindowPositionManager.markPostOnboardingScreenRecordingRelaunchConsumed()
+                        // A fresh grant of either core capture/input permission only goes
+                        // live on the next launch, so relaunch once here when onboarding
+                        // finishes — a single Quit & Reopen activates both:
+                        //   • Screen Recording — macOS only honors the grant next launch,
+                        //     so the first prompt would otherwise hit the relaunch card /
+                        //     raw system prompt. After relaunch the warm-up capture also
+                        //     fires macOS 15/26's second "bypass the private window picker"
+                        //     consent in-context on its own.
+                        //   • Accessibility — the push-to-talk CGEvent tap only delivers
+                        //     events in a process trusted at launch. macOS does NOT force
+                        //     a relaunch for Accessibility (only Screen Recording), so
+                        //     without this the hotkeys are silently dead even though
+                        //     Settings shows Perch ON. (See accessibilityTapNeedsRelaunch…)
+                        let needsScreenRecordingRelaunch =
+                            WindowPositionManager.shouldRelaunchAfterOnboardingToActivateScreenRecording()
+                        let needsAccessibilityRelaunch =
+                            WindowPositionManager.accessibilityTapNeedsRelaunchToActivate()
+                        if needsScreenRecordingRelaunch || needsAccessibilityRelaunch {
+                            if needsScreenRecordingRelaunch {
+                                WindowPositionManager.markPostOnboardingScreenRecordingRelaunchConsumed()
+                            }
                             ApplicationRelauncher.restart()
                             return
                         }

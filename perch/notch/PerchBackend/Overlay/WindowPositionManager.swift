@@ -43,6 +43,38 @@ class WindowPositionManager {
         AXIsProcessTrusted()
     }
 
+    /// Whether this process was already Accessibility-trusted at launch. `nil` until
+    /// `captureAccessibilityTrustAtLaunch()` records it once, early in startup.
+    ///
+    /// The push-to-talk / double-Control hotkeys run off a CGEvent tap
+    /// (`GlobalPushToTalkShortcutMonitor`). macOS only lets that tap deliver keyboard
+    /// events when it is created inside a process that was *already* trusted at launch.
+    /// If the Accessibility grant arrives later — during onboarding, or via System
+    /// Settings while Perch is running — `AXIsProcessTrusted()` flips to true and the
+    /// tap is (re)created, but macOS keeps it silently dead until the app relaunches.
+    /// (macOS forces its own relaunch for Screen Recording, but NOT for Accessibility,
+    /// so nothing makes the fresh grant go live on its own.) We snapshot the launch
+    /// state so we can tell a fresh, already-live launch apart from one holding a stale,
+    /// non-delivering tap that needs a relaunch.
+    private static var accessibilityTrustedAtLaunch: Bool?
+
+    /// Records whether Accessibility was granted at process launch. Must be called once,
+    /// early in startup, before the user can grant it this session. Idempotent.
+    static func captureAccessibilityTrustAtLaunch() {
+        guard accessibilityTrustedAtLaunch == nil else { return }
+        accessibilityTrustedAtLaunch = AXIsProcessTrusted()
+    }
+
+    /// True when Accessibility is granted now but was NOT trusted at launch — i.e. the
+    /// running process holds a stale, non-delivering push-to-talk tap and must relaunch
+    /// for the hotkeys to actually fire. False on a launch that was already trusted (its
+    /// tap is live) and false when the grant is still missing. Conservative (false) if
+    /// the launch state was never captured, so we never relaunch on a guess.
+    static func accessibilityTapNeedsRelaunchToActivate() -> Bool {
+        guard let accessibilityTrustedAtLaunch else { return false }
+        return hasAccessibilityPermission() && !accessibilityTrustedAtLaunch
+    }
+
     /// Presents exactly one permission path per tap: the system prompt on the first
     /// attempt, then System Settings on later attempts after macOS has already shown
     /// its one-time alert.

@@ -585,6 +585,12 @@ final class CompanionManager: ObservableObject {
     }
 
     func start() {
+        // Snapshot whether Accessibility was already trusted at launch, BEFORE any
+        // onboarding/System-Settings grant can flip it. A push-to-talk CGEvent tap only
+        // delivers events in a process trusted at launch; a grant that arrives later
+        // leaves the tap silently dead until relaunch. This snapshot is what lets us
+        // relaunch exactly when the hotkeys would otherwise be broken.
+        WindowPositionManager.captureAccessibilityTrustAtLaunch()
         refreshAllPermissions()
         print("🔑 Perch start — accessibility: \(hasAccessibilityPermission), screen: \(hasScreenRecordingPermission), mic: \(hasMicrophonePermission), screenContent: \(hasScreenContentPermission), onboarded: \(hasCompletedOnboarding)")
         perchDebugLog("Perch start — accessibility: \(hasAccessibilityPermission), screen: \(hasScreenRecordingPermission), mic: \(hasMicrophonePermission), screenContent: \(hasScreenContentPermission), onboarded: \(hasCompletedOnboarding)")
@@ -776,6 +782,11 @@ final class CompanionManager: ObservableObject {
         // Track individual permission grants as they happen
         if !previouslyHadAccessibility && hasAccessibilityPermission {
             PerchAnalytics.trackPermissionGranted(permission: "accessibility")
+            // The grant just arrived while Perch was running, so the push-to-talk tap
+            // is created but silently dead until relaunch (macOS won't relaunch for
+            // Accessibility on its own). Offer the one-time Quit & Reopen that makes the
+            // hotkeys actually fire.
+            promptAccessibilityRelaunchIfNeeded()
         }
         if !previouslyHadScreenRecording && hasScreenRecordingPermission {
             PerchAnalytics.trackPermissionGranted(permission: "screen_recording")
@@ -2367,6 +2378,43 @@ final class CompanionManager: ObservableObject {
             hasPromptedScreenRecordingRelaunchThisLaunch = false
         default:
             break
+        }
+    }
+
+    /// Shown at most once per launch so the user isn't nagged repeatedly.
+    private var hasPromptedAccessibilityRelaunchThisLaunch = false
+
+    /// Surfaces a one-time Quit & Reopen when Accessibility was granted while Perch was
+    /// already running. The push-to-talk / double-Control CGEvent tap only delivers
+    /// events in a process trusted at launch, and macOS — unlike Screen Recording —
+    /// does NOT relaunch the app for an Accessibility grant, so the freshly-created tap
+    /// stays silently dead (hotkeys don't fire even though Settings shows Perch ON).
+    /// A single relaunch recreates the tap in a trusted process and makes it live.
+    private func promptAccessibilityRelaunchIfNeeded() {
+        // Only relevant when the grant arrived after launch (a launch that was already
+        // trusted has a live tap and needs nothing).
+        guard WindowPositionManager.accessibilityTapNeedsRelaunchToActivate() else { return }
+        // While onboarding is still in progress its end-of-flow auto-relaunch handles
+        // this — don't double up with a modal mid-flow. The resume marker exists only
+        // while onboarding is running (cleared at `.finished`).
+        guard UserDefaults.standard.string(forKey: OnboardingProgress.resumeStepKey) == nil else { return }
+        guard !hasPromptedAccessibilityRelaunchThisLaunch else { return }
+        hasPromptedAccessibilityRelaunchThisLaunch = true
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Relaunch Perch to finish enabling the hotkeys"
+        alert.informativeText = """
+        You just granted Accessibility, which powers Perch's ⌃⌥ talk shortcut and \
+        double-tap ⌃ to type. macOS only lets those hotkeys start working after Perch \
+        relaunches — click Quit & Reopen and they'll be live.
+        """
+        alert.addButton(withTitle: "Quit & Reopen")
+        alert.addButton(withTitle: "Not Now")
+
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            ApplicationRelauncher.restart()
         }
     }
 
