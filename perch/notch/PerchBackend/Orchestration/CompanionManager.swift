@@ -82,6 +82,10 @@ final class CompanionManager: ObservableObject {
     private var onboardingMusicPlayer: AVAudioPlayer?
     private var onboardingMusicFadeTimer: Timer?
 
+    /// Retains the bundled "out of credits" clip so it plays to the end after
+    /// `playCreditsExhaustedClip()` returns.
+    private var creditsClipPlayer: AVAudioPlayer?
+
     let buddyDictationManager = BuddyDictationManager()
     let globalPushToTalkShortcutMonitor = GlobalPushToTalkShortcutMonitor()
     let overlayWindowManager = OverlayWindowManager()
@@ -1858,14 +1862,22 @@ final class CompanionManager: ObservableObject {
                 }
                 promptScreenRecordingRelaunchIfNeeded()
             } catch {
-                PerchAnalytics.trackResponseError(error: error.localizedDescription)
-                PerchRunLog.append(run, .error, "response pipeline error (screenshot/claude/tts): \(error)")
-                print("⚠️ Companion response error: \(error)")
-                // Never leave the "thinking" bubble spinning forever on an error.
-                if inputKind == "typed" {
-                    finalizeStreamingAssistant(finalText: "Something went wrong. Try again.")
+                if Self.isCreditsExhaustedError(error) {
+                    // Expected outcome, not a failure: the plan's companion quota is
+                    // spent (HTTP 402 upgrade_required). Tell the user in words —
+                    // bubble text plus a bundled spoken clip — instead of surfacing
+                    // it as an error. The clip is pre-recorded so it costs no TTS.
+                    PerchRunLog.append(run, .state, "companion quota exhausted (402) — showing upgrade prompt")
+                    handleCreditsExhausted(inputKind: inputKind)
+                } else {
+                    PerchAnalytics.trackResponseError(error: error.localizedDescription)
+                    PerchRunLog.append(run, .error, "response pipeline error (screenshot/claude/tts): \(error)")
+                    print("⚠️ Companion response error: \(error)")
+                    // Never leave the "thinking" bubble spinning forever on an error.
+                    if inputKind == "typed" {
+                        finalizeStreamingAssistant(finalText: "Something went wrong. Try again.")
+                    }
                 }
-                displayCreditsErrorMessage()
             }
 
             // Terminal point for the answer / error / cancellation paths (the
@@ -2133,9 +2145,15 @@ final class CompanionManager: ObservableObject {
             voiceState = .responding
         } catch {
             PerchAnalytics.trackTTSError(error: error.localizedDescription)
-            PerchRunLog.append(activeRun, .error, "TTS failed, using credits fallback: \(error)")
-            print("⚠️ ElevenLabs TTS error: \(error)")
-            displayCreditsErrorMessage()
+            if Self.isCreditsExhaustedError(error) {
+                // TTS itself hit the quota wall — say the upgrade prompt with the
+                // bundled clip (no further TTS) rather than staying silent.
+                PerchRunLog.append(activeRun, .state, "TTS quota exhausted (402) — showing upgrade prompt")
+                handleCreditsExhausted(inputKind: "voice")
+            } else {
+                PerchRunLog.append(activeRun, .error, "TTS failed: \(error)")
+                print("⚠️ ElevenLabs TTS error: \(error)")
+            }
         }
     }
 
@@ -2418,10 +2436,56 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    private func displayCreditsErrorMessage() {
-        let message = "I'm all out of credits. Please upgrade for more!"
-        PerchRunLog.append(activeRun, .action, "\(message) (shown as text at notch)")
+    /// The user-facing wording for a spent quota. Kept in one place so the text
+    /// bubble matches the words in the bundled `credits-exhausted.mp3` clip.
+    private static let creditsExhaustedMessage = "I'm all out of credits. Please upgrade for more!"
 
+    /// True when `error` is the backend reporting a spent plan quota — HTTP 402
+    /// `upgrade_required` from the `/chat` or `/tts` proxy. This is an expected,
+    /// handled outcome (show + speak the upgrade prompt), never a generic failure.
+    private static func isCreditsExhaustedError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let is402 = (nsError.domain == "ClaudeAPI" || nsError.domain == "ElevenLabsTTS")
+            && nsError.code == 402
+        // Belt-and-suspenders: also match the body marker in case a proxy relays
+        // the upgrade signal under a different status.
+        let mentionsUpgrade = nsError.localizedDescription.contains("upgrade_required")
+        return is402 || mentionsUpgrade
+    }
+
+    /// Graceful "out of credits" outcome: show the wording in the text bubble and
+    /// speak it via the bundled clip (never TTS). Works for both input modes — a
+    /// typed turn lands the words in the chat stream; a voice turn shows the bubble.
+    private func handleCreditsExhausted(inputKind: String) {
+        PerchRunLog.append(activeRun, .action, "\(Self.creditsExhaustedMessage) (out of credits — bubble + clip)")
+        playCreditsExhaustedClip()
+        if inputKind == "typed" {
+            finalizeStreamingAssistant(finalText: Self.creditsExhaustedMessage)
+        } else {
+            showCreditsExhaustedBubble()
+        }
+    }
+
+    /// Plays the pre-recorded "out of credits" line from the app bundle. It is a
+    /// recording (not TTS) precisely because the user is out of TTS credits too —
+    /// so this path costs nothing. Stops any in-flight TTS so it isn't talked over.
+    private func playCreditsExhaustedClip() {
+        guard let clipURL = Bundle.main.url(forResource: "credits-exhausted", withExtension: "mp3") else {
+            print("⚠️ Perch: credits-exhausted.mp3 not found in bundle")
+            return
+        }
+        elevenLabsTTSClient.stopPlayback()
+        do {
+            let player = try AVAudioPlayer(contentsOf: clipURL)
+            player.play()
+            creditsClipPlayer = player
+        } catch {
+            print("⚠️ Perch: failed to play credits clip: \(error)")
+        }
+    }
+
+    /// Surfaces the credits wording in the shared text bubble and auto-dismisses it.
+    private func showCreditsExhaustedBubble() {
         // Make sure the cursor overlay is on screen so the text bubble is
         // visible, even if "Show Perch" is off and the overlay had faded out.
         transientHideTask?.cancel()
@@ -2435,7 +2499,7 @@ final class CompanionManager: ObservableObject {
         // Surface the message in the same text bubble used for background-task
         // results, and schedule it to auto-dismiss after a few seconds.
         backgroundTaskCompletionClearTask?.cancel()
-        backgroundTaskCompletionText = message
+        backgroundTaskCompletionText = Self.creditsExhaustedMessage
         backgroundTaskCompletionClearTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 8_000_000_000)
             guard !Task.isCancelled else { return }
