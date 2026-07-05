@@ -611,7 +611,7 @@ struct Media: View {
             Section {
                 Picker("Music Source", selection: $mediaController) {
                     ForEach(availableMediaControllers) { controller in
-                        Text(controller.rawValue).tag(controller)
+                        Text(controller.displayName).tag(controller)
                     }
                 }
                 .onChange(of: mediaController) { _, _ in
@@ -715,7 +715,6 @@ struct Media: View {
 struct CalendarSettings: View {
     @ObservedObject private var calendarManager = CalendarManager.shared
     @Default(.showCalendar) var showCalendar: Bool
-    @Default(.hideCompletedReminders) var hideCompletedReminders
     @Default(.hideAllDayEvents) var hideAllDayEvents
     @Default(.autoScrollToNextEvent) var autoScrollToNextEvent
 
@@ -723,9 +722,6 @@ struct CalendarSettings: View {
         Form {
             Defaults.Toggle(key: .showCalendar) {
                 Text("Show calendar")
-            }
-            Defaults.Toggle(key: .hideCompletedReminders) {
-                Text("Hide completed reminders")
             }
             Defaults.Toggle(key: .hideAllDayEvents) {
                 Text("Hide all-day events")
@@ -772,49 +768,12 @@ struct CalendarSettings: View {
                     }
                 }
             }
-            Section(header: Text("Reminders")) {
-                if calendarManager.reminderAuthorizationStatus != .fullAccess {
-                    Text("Reminder access is denied. Please enable it in System Settings.")
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding()
-                    Button("Open Reminder Settings") {
-                        if let settingsURL = URL(
-                            string:
-                                "x-apple.systempreferences:com.apple.preference.security?Privacy_Reminders"
-                        ) {
-                            NSWorkspace.shared.open(settingsURL)
-                        }
-                    }
-                } else {
-                    List {
-                        ForEach(calendarManager.reminderLists, id: \.id) { calendar in
-                            Toggle(
-                                isOn: Binding(
-                                    get: { calendarManager.getCalendarSelected(calendar) },
-                                    set: { isSelected in
-                                        Task {
-                                            await calendarManager.setCalendarSelected(
-                                                calendar, isSelected: isSelected)
-                                        }
-                                    }
-                                )
-                            ) {
-                                Text(calendar.title)
-                            }
-                            .accentColor(lighterColor(from: calendar.color))
-                            .disabled(!showCalendar)
-                        }
-                    }
-                }
-            }
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Calendar")
         .onAppear {
             Task {
                 await calendarManager.checkCalendarAuthorization()
-                await calendarManager.checkReminderAuthorization()
             }
         }
     }

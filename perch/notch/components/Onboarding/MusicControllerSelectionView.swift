@@ -16,13 +16,19 @@ struct MusicControllerSelectionView: View {
     
     private var availableMediaControllers: [MediaControllerType] {
         if MusicManager.shared.isNowPlayingDeprecated {
-            return MediaControllerType.allCases.filter { $0 != .nowPlaying }
+            return MediaControllerType.selectableCases.filter { $0 != .nowPlaying }
         } else {
-            return MediaControllerType.allCases
+            return MediaControllerType.selectableCases
         }
     }
     
-    @State private var selectedMediaController: MediaControllerType = Defaults[.mediaController]
+    // Pre-select a real source so Continue always connects something. When
+    // nothing is connected yet (`.none`), fall back to the platform default
+    // rather than leaving the list with no highlighted option.
+    @State private var selectedMediaController: MediaControllerType =
+        Defaults[.mediaController] == .none
+            ? (MusicManager.shared.isNowPlayingDeprecated ? .appleMusic : .nowPlaying)
+            : Defaults[.mediaController]
     
     var body: some View {
         VStack(spacing: 20) {
@@ -122,6 +128,8 @@ struct ControllerOptionView: View {
 extension MediaControllerType {
     var description: String {
         switch self {
+        case .none:
+            return ""
         case .nowPlaying:
             return "Works with most media apps, including browsers, to detect what's playing. Note: This may be removed in a future macOS version."
         case .spotify:

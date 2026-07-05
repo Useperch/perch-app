@@ -5,6 +5,7 @@
 //  Created by Harsh Vardhan  Goswami  on 08/09/24.
 //
 
+import AppKit
 import Defaults
 import SwiftUI
 
@@ -383,7 +384,17 @@ struct CalendarView: View {
         )
         let hasEvents = !filteredEvents.isEmpty
         VStack(spacing: 0) {
-            if hasEvents && tasksRevealed {
+            if calendarManager.calendarAuthorizationStatus != .fullAccess {
+                // Calendar access is deferred out of onboarding — until the user
+                // grants it, the widget slot shows a connect prompt instead of
+                // the (empty) date carousel.
+                ConnectPromptCard(
+                    icon: Image(systemName: "calendar"),
+                    title: "See your schedule in Perch",
+                    buttonLabel: "Connect Calendar",
+                    onConnect: connectCalendar
+                )
+            } else if hasEvents && tasksRevealed {
                 // Revealed: compact date header + the task list.
                 dateCarousel(compact: true)
                 EventListView(events: calendarManager.events)
@@ -405,9 +416,14 @@ struct CalendarView: View {
         .animation(.snappy(duration: 0.28, extraBounce: 0.08), value: tasksRevealed)
         .animation(.spring(response: 0.38, dampingFraction: 0.8), value: shouldShowDailyBriefButton)
         .listRowBackground(Color.clear)
-        // Fixed height matching the music player so the calendar never stretches
-        // the open-HUD row (which was warping the music player's layout).
-        .frame(height: 120)
+        // Connected: fixed 120 so the calendar never stretches the open-HUD row
+        // (which was warping the music player's layout). Unconnected: let the
+        // "Connect Calendar" card fill the full row height so it centers
+        // vertically in line with the music player's "Connect Music" card.
+        .frame(
+            minHeight: 120,
+            maxHeight: calendarManager.calendarAuthorizationStatus == .fullAccess ? 120 : .infinity
+        )
         .clipped()
         // Vertical scroll over the calendar toggles the tasks (reveal ⇄ hide).
         .background(
@@ -434,12 +450,30 @@ struct CalendarView: View {
         }
         .onAppear {
             Task {
-                // Request Calendar access (if not yet granted) so events load,
-                // then fetch today's events.
-                await calendarManager.checkCalendarAuthorization()
+                // Read (don't request) Calendar access so an unconnected user
+                // sees the "Connect Calendar" prompt instead of an automatic
+                // system dialog; when already granted, load today's events.
+                await calendarManager.refreshCalendarAuthorization()
                 await calendarManager.updateCurrentDate(Date.now)
                 selectedDate = Date.now
             }
+        }
+    }
+
+    /// Runs the calendar connect prompt's button. Not-yet-asked → trigger the
+    /// macOS permission request (which updates `calendarAuthorizationStatus`, so
+    /// the card swaps to real events on grant). Previously denied → macOS won't
+    /// re-prompt, so open the Privacy pane instead.
+    private func connectCalendar() {
+        switch calendarManager.calendarAuthorizationStatus {
+        case .denied, .restricted:
+            if let url = URL(
+                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
+            ) {
+                NSWorkspace.shared.open(url)
+            }
+        default:
+            Task { await calendarManager.checkCalendarAuthorization() }
         }
     }
 
@@ -479,27 +513,8 @@ struct CalendarView: View {
     }
 }
 
-struct EmptyEventsView: View {
-    let selectedDate: Date
-    
-    var body: some View {
-        VStack {
-            Image(systemName: "calendar.badge.checkmark")
-                .font(.title)
-                .foregroundColor(Color(white: 0.65))
-            Text(Calendar.current.isDateInToday(selectedDate) ? "No events today" : "No events")
-                .font(.subheadline)
-                .foregroundColor(.white)
-            Text("Enjoy your free time!")
-                .font(.caption)
-                .foregroundColor(Color(white: 0.65))
-        }
-    }
-}
-
 struct EventListView: View {
     @Environment(\.openURL) private var openURL
-    @ObservedObject private var calendarManager = CalendarManager.shared
     let events: [EventModel]
     @Default(.autoScrollToNextEvent) private var autoScrollToNextEvent
     @Default(.showFullEventTitles) private var showFullEventTitles
@@ -507,11 +522,6 @@ struct EventListView: View {
 
     static func filteredEvents(events: [EventModel]) -> [EventModel] {
         events.filter { event in
-            if event.type.isReminder {
-                if case .reminder(let completed) = event.type {
-                    return !completed || !Defaults[.hideCompletedReminders]
-                }
-            }
             // Filter out all-day events if setting is enabled
             if event.isAllDay && Defaults[.hideAllDayEvents] {
                 return false
@@ -576,61 +586,7 @@ struct EventListView: View {
     }
 
     private func eventRow(_ event: EventModel) -> some View {
-        if event.type.isReminder {
-            let isCompleted: Bool
-            if case .reminder(let completed) = event.type {
-                isCompleted = completed
-            } else {
-                isCompleted = false
-            }
-            return AnyView(
-                HStack(spacing: 8) {
-                    ReminderToggle(
-                        isOn: Binding(
-                            get: { isCompleted },
-                            set: { newValue in
-                                Task {
-                                    await calendarManager.setReminderCompleted(
-                                        reminderID: event.id, completed: newValue
-                                    )
-                                }
-                            }
-                        ),
-                        color: Color(event.calendar.color)
-                    )
-                    .opacity(1.0)  // Ensure the toggle is always fully opaque
-                    HStack {
-                        Text(event.title)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .lineLimit(showFullEventTitles ? nil : 1)
-                        Spacer(minLength: 0)
-                        VStack(alignment: .trailing, spacing: 4) {
-                            if event.isAllDay {
-                                Text("All-day")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-                            } else {
-                                Text(event.start, style: .time)
-                                    .foregroundColor(.white)
-                                    .font(.caption2)
-                            }
-                        }
-                    }
-                    .opacity(
-                        isCompleted
-                            ? 0.4
-                            : event.start < Date.now && Calendar.current.isDateInToday(event.start)
-                                ? 0.6 : 1.0
-                    )
-                }
-                .padding(.vertical, 4)
-            )
-        } else {
-            return AnyView(
-                HStack(alignment: .top, spacing: 4) {
+        HStack(alignment: .top, spacing: 4) {
                     Rectangle()
                         .fill(Color(event.calendar.color))
                         .frame(width: 3)
@@ -671,38 +627,6 @@ struct EventListView: View {
                 .opacity(
                     event.eventStatus == .ended && Calendar.current.isDateInToday(event.start)
                         ? 0.6 : 1.0)
-            )
-        }
-    }
-}
-
-struct ReminderToggle: View {
-    @Binding var isOn: Bool
-    var color: Color
-
-    var body: some View {
-        Button(action: {
-            isOn.toggle()
-        }) {
-            ZStack {
-                // Outer ring
-                Circle()
-                    .strokeBorder(color, lineWidth: 2)
-                    .frame(width: 14, height: 14)
-                // Inner fill
-                if isOn {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 8, height: 8)
-                }
-                Circle()
-                    .fill(Color.black.opacity(0.001))
-                    .frame(width: 14, height: 14)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .padding(0)
-        .accessibilityLabel(isOn ? "Mark as incomplete" : "Mark as complete")
     }
 }
 

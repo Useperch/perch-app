@@ -34,6 +34,7 @@ final class PerchCapabilityToggles: ObservableObject {
         static let eyes = "perch.permission.eyes.enabled"
         static let ears = "perch.permission.ears.enabled"
         static let hands = "perch.permission.hands.enabled"
+        static let screenshotAlwaysAllow = "perch.permission.screenshotAlwaysAllow"
     }
 
     @Published var isEyesEnabled: Bool {
@@ -59,6 +60,20 @@ final class PerchCapabilityToggles: ObservableObject {
     nonisolated static func isEyesEnabledNow() -> Bool { storedFlagDefaultingOn(StorageKey.eyes) }
     nonisolated static func isEarsEnabledNow() -> Bool { storedFlagDefaultingOn(StorageKey.ears) }
     nonisolated static func isHandsEnabledNow() -> Bool { storedFlagDefaultingOn(StorageKey.hands) }
+
+    // MARK: Screenshot "Always Allow"
+
+    /// Whether the user chose "Always Allow" on the just-in-time screenshot
+    /// consent prompt. Unlike the ability toggles this defaults **off** — Perch
+    /// must ask before the first screenshot (Screen Recording is no longer
+    /// requested up-front in onboarding).
+    nonisolated static func isScreenshotAlwaysAllowedNow() -> Bool {
+        UserDefaults.standard.bool(forKey: StorageKey.screenshotAlwaysAllow)
+    }
+
+    nonisolated static func setScreenshotAlwaysAllowed(_ allowed: Bool) {
+        UserDefaults.standard.set(allowed, forKey: StorageKey.screenshotAlwaysAllow)
+    }
 
     /// Reads a persisted flag, treating "never set" as ON — so a fresh install has
     /// every ability enabled until the user turns one off.

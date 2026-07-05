@@ -23,7 +23,6 @@ struct EventModel: Equatable, Identifiable {
     let participants: [Participant]
     let timeZone: TimeZone?
     let hasRecurrenceRules: Bool
-    let priority: Priority?
 }
 
 enum AttendanceStatus: Comparable {
@@ -51,7 +50,6 @@ enum AttendanceStatus: Comparable {
 enum EventType: Equatable {
     case event(AttendanceStatus)
     case birthday
-    case reminder(completed: Bool)
 }
 
 enum EventStatus: Equatable {
@@ -63,7 +61,6 @@ enum EventStatus: Equatable {
 extension EventType {
     var isEvent: Bool { if case .event = self { return true } else { return false } }
     var isBirthday: Bool { self ~= .birthday }
-    var isReminder: Bool { if case .reminder = self { return true } else { return false } }
 }
 
 extension EventModel {
@@ -86,10 +83,6 @@ extension EventModel {
 
         guard let id = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
             return nil
-        }
-
-        guard !type.isReminder else {
-            return URL(string: "x-apple-reminderkit://remcdreminder/\(id)")
         }
 
         let date: String
@@ -116,10 +109,4 @@ struct Participant: Hashable {
     let status: AttendanceStatus
     let isOrganizer: Bool
     let isCurrentUser: Bool
-}
-
-enum Priority {
-    case high
-    case medium
-    case low
 }

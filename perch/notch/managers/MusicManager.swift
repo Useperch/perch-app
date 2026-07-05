@@ -35,6 +35,9 @@ class MusicManager: ObservableObject {
     @Published var isPlaying = false
     @Published var album: String = "Self Love"
     @Published var isPlayerIdle: Bool = true
+    /// False until the user picks a music source (`.mediaController == .none`).
+    /// Drives the notch's "Connect Music" empty state.
+    @Published var isMusicConnected: Bool = Defaults[.mediaController] != .none
     @Published var animations: Animations = .init()
     @Published var avgColor: NSColor = .white
     @Published var bundleIdentifier: String? = nil
@@ -118,6 +121,9 @@ class MusicManager: ObservableObject {
         let newController: (any MediaControllerProtocol)?
 
         switch type {
+        case .none:
+            // No source connected — no controller to create.
+            return nil
         case .nowPlaying:
             // Only create NowPlayingController if not deprecated on this macOS version
             if !self.isNowPlayingDeprecated {
@@ -152,6 +158,13 @@ class MusicManager: ObservableObject {
         let preferredType = Defaults[.mediaController]
         print("Preferred Media Controller: \(preferredType)")
 
+        // No source connected yet — tear down any controller and show the
+        // "Connect Music" empty state instead of the placeholder track.
+        guard preferredType != .none else {
+            deactivateController()
+            return
+        }
+
         // If NowPlaying is deprecated but that's the preference, use Apple Music instead
         let controllerType = (self.isNowPlayingDeprecated && preferredType == .nowPlaying)
             ? .appleMusic
@@ -165,13 +178,30 @@ class MusicManager: ObservableObject {
         }
     }
 
+    /// Tears down the active controller and resets the now-playing state to a
+    /// clean "nothing connected" slate (no "I'm Handsome" placeholder), so the
+    /// notch renders the Connect Music prompt.
+    private func deactivateController() {
+        controllerCancellables.removeAll()
+        activeController = nil
+        isMusicConnected = false
+        isPlaying = false
+        isPlayerIdle = true
+        songTitle = ""
+        artistName = ""
+        album = ""
+        albumArt = defaultImage
+        bundleIdentifier = nil
+    }
+
     private func setActiveController(_ controller: any MediaControllerProtocol) {
         // Cancel any existing flip animation
         flipWorkItem?.cancel()
 
         // Set new active controller
         activeController = controller
-        
+        isMusicConnected = true
+
         self.canFavoriteTrack = controller.supportsFavorite
 
         // Get current state from active controller

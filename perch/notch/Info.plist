@@ -21,15 +21,11 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Used to carry out desktop tasks for you after you show a workflow once.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Used to show your upcoming events in the notch and remind you about them.</string>
+	<string>Used to show your upcoming events in the notch.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Used to show your upcoming events in the notch and remind you about them.</string>
+	<string>Used to show your upcoming events in the notch.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Used so you can talk to the assistant.</string>
-	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Used to show your reminders in the notch and let you check them off.</string>
-	<key>NSRemindersUsageDescription</key>
-	<string>Used to show your reminders in the notch and let you check them off.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Used to see your screen so the assistant can help with what you're doing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

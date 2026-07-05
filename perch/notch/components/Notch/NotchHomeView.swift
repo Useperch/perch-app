@@ -15,20 +15,79 @@ import SwiftUI
 
 struct MusicPlayerView: View {
     @EnvironmentObject var vm: ViewModel
+    @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var notchAlertCoordinator: NotchAlertCoordinator
     @ObservedObject var serviceConnectionOfferCoordinator: ServiceConnectionOfferCoordinator
     let albumArtNamespace: Namespace.ID
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
-            AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace).padding(.all, 5)
-            NotchHomeCenterColumn(
-                notchAlertCoordinator: notchAlertCoordinator,
-                serviceConnectionOfferCoordinator: serviceConnectionOfferCoordinator
+        if musicManager.isMusicConnected {
+            HStack(alignment: .center, spacing: 0) {
+                AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace).padding(.all, 5)
+                NotchHomeCenterColumn(
+                    notchAlertCoordinator: notchAlertCoordinator,
+                    serviceConnectionOfferCoordinator: serviceConnectionOfferCoordinator
+                )
+                    .frame(maxWidth: .infinity)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            // No music source connected yet (music selection is deferred out of
+            // onboarding) — show a Connect Music prompt in the player slot.
+            ConnectPromptCard(
+                icon: Image(systemName: "music.note"),
+                title: "Connect your music",
+                buttonLabel: "Connect Music",
+                onConnect: {
+                    NotificationCenter.default.post(name: .connectMusicRequested, object: nil)
+                }
             )
-                .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A compact empty-state card shown inside a notch widget slot when a data
+/// source isn't connected yet — e.g. "Connect Calendar" / "Connect Music".
+/// Permissions/sources for these are deferred out of onboarding, so the notch
+/// shows this prompt until the user opts in; tapping the button runs
+/// `onConnect`, which requests the permission or opens the source picker.
+///
+/// (Lives here rather than its own file because notch's Xcode project lists the
+/// `components/` sources individually — a brand-new file wouldn't be compiled.)
+struct ConnectPromptCard: View {
+    let icon: Image
+    let title: String
+    let buttonLabel: String
+    let onConnect: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            icon
+                .font(.title2)
+                .foregroundColor(Color(white: 0.65))
+
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button(action: onConnect) {
+                Text(buttonLabel)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.effectiveAccent))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -530,9 +589,13 @@ struct NotchHomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay {
-            // Surface priority, most time-critical first: an agent confirmation is
-            // auto-denied by the sidecar after ~120s, so it outranks the connect
-            // prompt (which blocks indefinitely) and the (lowest) notch alert.
+            // Surface priority, most time-critical first: an agent confirmation
+            // (auto-denied after ~120s) outranks the connect prompt (blocks
+            // indefinitely), which outranks the (lowest) notch alert. The
+            // just-in-time screenshot consent prompt is NOT here — it renders at
+            // the top level of the notch (ContentView) so it surfaces over ANY
+            // view, including the typed-input composer and voice activity, not
+            // just the home surface.
             if let agentConfirmation = companionManager.pendingAgentConfirmation {
                 GeometryReader { geometry in
                     let confirmationBandWidth = max(
