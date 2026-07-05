@@ -57,6 +57,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var closeNotchTask: Task<Void, Never>?
     private var previousScreens: [NSScreen]?
     private var onboardingWindowController: NSWindowController?
+    private var musicSourceWindowController: NSWindowController?
     private var screenLockedObserver: Any?
     private var screenUnlockedObserver: Any?
     private var isScreenLocked: Bool = false
@@ -540,6 +541,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // The notch's "Connect Music" empty-state prompt asks the app to open
+        // the standalone music-source picker.
+        NotificationCenter.default.addObserver(
+            forName: .connectMusicRequested, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.showMusicSourcePicker()
+            }
+        }
+
         // Use closure-based observers for DistributedNotificationCenter and keep tokens for removal
         screenLockedObserver = DistributedNotificationCenter.default().addObserver(
             forName: NSNotification.Name(rawValue: "com.apple.screenIsLocked"),
@@ -639,7 +650,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             && Defaults[.mediaController] == .nowPlaying
         {
             DispatchQueue.main.async {
-                self.showOnboardingWindow(step: .musicPermission)
+                self.showMusicSourcePicker()
             }
         }
 
@@ -806,27 +817,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         NSApp.setActivationPolicy(.accessory)
                         NSApp.deactivate()
 
-                        // A fresh grant of either core capture/input permission only goes
-                        // live on the next launch, so relaunch once here when onboarding
-                        // finishes — a single Quit & Reopen activates both:
-                        //   • Screen Recording — macOS only honors the grant next launch,
-                        //     so the first prompt would otherwise hit the relaunch card /
-                        //     raw system prompt. After relaunch the warm-up capture also
-                        //     fires macOS 15/26's second "bypass the private window picker"
-                        //     consent in-context on its own.
-                        //   • Accessibility — the push-to-talk CGEvent tap only delivers
-                        //     events in a process trusted at launch. macOS does NOT force
-                        //     a relaunch for Accessibility (only Screen Recording), so
-                        //     without this the hotkeys are silently dead even though
-                        //     Settings shows Perch ON. (See accessibilityTapNeedsRelaunch…)
-                        let needsScreenRecordingRelaunch =
-                            WindowPositionManager.shouldRelaunchAfterOnboardingToActivateScreenRecording()
-                        let needsAccessibilityRelaunch =
-                            WindowPositionManager.accessibilityTapNeedsRelaunchToActivate()
-                        if needsScreenRecordingRelaunch || needsAccessibilityRelaunch {
-                            if needsScreenRecordingRelaunch {
-                                WindowPositionManager.markPostOnboardingScreenRecordingRelaunchConsumed()
-                            }
+                        // A fresh Accessibility grant only goes live on the next launch,
+                        // so relaunch once here when onboarding finishes: the push-to-talk
+                        // CGEvent tap only delivers events in a process trusted at launch,
+                        // and macOS does NOT force a relaunch for Accessibility on its own,
+                        // so without this the hotkeys are silently dead even though Settings
+                        // shows Perch ON. (See accessibilityTapNeedsRelaunch…) Screen
+                        // Recording is no longer part of onboarding — it's requested
+                        // just-in-time on the first screenshot, which owns its own relaunch.
+                        if WindowPositionManager.accessibilityTapNeedsRelaunchToActivate() {
                             ApplicationRelauncher.restart()
                             return
                         }
@@ -851,6 +850,47 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         onboardingWindowController?.window?.orderFrontRegardless()
         onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Presents the music-source picker on its own, outside onboarding — used by
+    /// the notch's "Connect Music" prompt and the now-playing-deprecated
+    /// re-prompt. Reuses `MusicControllerSelectionView`, whose Continue writes
+    /// `.mediaController` and posts `.mediaControllerChanged` so `MusicManager`
+    /// rebuilds the controller live; here `onContinue` just closes the window.
+    func showMusicSourcePicker() {
+        if musicSourceWindowController == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 400, height: 600),
+                styleMask: [.titled, .closable, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
+            window.center()
+            window.title = "Music Source"
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
+            window.hidesOnDeactivate = false
+            window.isExcludedFromWindowsMenu = false
+            window.isRestorable = false
+            window.identifier = NSUserInterfaceItemIdentifier("MusicSourceWindow")
+            window.contentView = NSHostingView(
+                rootView: MusicControllerSelectionView(
+                    onContinue: { [weak self] in
+                        self?.musicSourceWindowController?.window?.orderOut(nil)
+                        NSApp.setActivationPolicy(.accessory)
+                        NSApp.deactivate()
+                    }
+                )
+            )
+            musicSourceWindowController = NSWindowController(window: window)
+        }
+
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        musicSourceWindowController?.window?.center()
+        musicSourceWindowController?.window?.orderFrontRegardless()
+        musicSourceWindowController?.window?.makeKeyAndOrderFront(nil)
     }
 }
 

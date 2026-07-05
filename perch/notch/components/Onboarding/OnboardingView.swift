@@ -7,13 +7,12 @@
 
 import SwiftUI
 import AVFoundation
-import CoreGraphics
 
-// Permission flow follows the "Hear → See → Act" ordering principle:
-// lead with the three core capabilities Perch
-// uses the moment you press a hotkey — Microphone (Ears), Screen Recording
-// (Eyes), and Accessibility (Hands) — then the optional notch widgets (Calendar /
-// Reminders) and the music source.
+// Onboarding asks for only the two permissions Perch needs the moment you press
+// the talk hotkey: Microphone (Ears) and Accessibility (Hands). Everything else is
+// deferred to the point of first use — Screen Recording is requested just-in-time
+// with an in-notch prompt the first time Perch wants a screenshot, and Calendar /
+// Music connect from empty-state prompts in the notch itself.
 //
 // Accessibility (Hands) MUST be requested here. The push-to-talk / double-Control
 // hotkeys are a listen-only CGEvent tap gated on AXIsProcessTrusted()
@@ -26,20 +25,16 @@ enum OnboardingStep: String {
     case emailVerification
     case emailCodeVerification
     case microphonePermission
-    case screenRecordingPermission
     case accessibilityPermission
-    case calendarPermission
-    case remindersPermission
-    case musicPermission
     case hotkeyTutorial
     case finished
 }
 
 /// Where Perch remembers how far the user got in onboarding. macOS forces a
-/// relaunch after you grant Screen Recording or Accessibility, which throws away
-/// the in-memory `step`; persisting it lets the next launch resume at the same
-/// place instead of restarting from the welcome screen (the "back to the
-/// beginning every time I grant a permission" loop).
+/// relaunch after you grant Accessibility, which throws away the in-memory `step`;
+/// persisting it lets the next launch resume at the same place instead of
+/// restarting from the welcome screen (the "back to the beginning every time I
+/// grant a permission" loop).
 enum OnboardingProgress {
     static let resumeStepKey = "perch.onboarding.resumeStep"
 
@@ -61,8 +56,6 @@ enum OnboardingProgress {
         }
     }
 }
-
-private let calendarService = CalendarService()
 
 struct OnboardingView: View {
     @State var step: OnboardingStep = .welcome
@@ -124,29 +117,6 @@ struct OnboardingView: View {
                         Task {
                             await requestMicrophonePermission()
                             withAnimation(.easeInOut(duration: 0.6)) {
-                                step = .screenRecordingPermission
-                            }
-                        }
-                    },
-                    onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .screenRecordingPermission
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            // MARK: Eyes — Screen Recording (core)
-            case .screenRecordingPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "eye.fill"),
-                    title: "Let Perch Take a Screenshot",
-                    description: "Only when you hold ⌃⌥ or ask for help, Perch takes a single screenshot so it can answer questions about what's on your screen. macOS calls this toggle “Screen Recording,” but Perch never records — it grabs one still image, and only when you ask. Perch will relaunch once after you grant this, and macOS will then ask one more time to let Perch see your screen directly — click Allow so you're not asked again later.",
-                    privacyNote: "The screenshot is used to answer your question, then discarded — never recorded, never stored, and never linked to your account.",
-                    onAllow: {
-                        Task {
-                            await requestScreenRecordingPermission()
-                            withAnimation(.easeInOut(duration: 0.6)) {
                                 step = .accessibilityPermission
                             }
                         }
@@ -160,76 +130,23 @@ struct OnboardingView: View {
                 .transition(.opacity)
 
             // MARK: Hands — Accessibility (core; powers the global hotkeys)
-            // Unlike the other permission steps this one only advances once
+            // Unlike the microphone step this one only advances once
             // AXIsProcessTrusted() actually validates (or the user skips) — and
             // it walks the user through clearing a stale TCC entry left by an
             // older copy of Perch, the case where Settings shows the toggle ON
             // but the grant never takes. See AccessibilityPermissionStepView.
+            // This is the last permission before the hotkey tutorial, so it marks
+            // first launch complete (Calendar / Music / Screen Recording are all
+            // deferred to in-notch prompts).
             case .accessibilityPermission:
                 AccessibilityPermissionStepView(
                     onComplete: {
                         withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .calendarPermission
+                            ViewCoordinator.shared.firstLaunch = false
+                            step = .hotkeyTutorial
                         }
                     },
                     onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .calendarPermission
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            // MARK: Optional notch widgets — Calendar
-            case .calendarPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "calendar"),
-                    title: "Enable Calendar Access",
-                    description: "Perch can show all your upcoming events in one place. Access to your calendar is needed to display your schedule.",
-                    privacyNote: "Your calendar data is only used to show your events and is never shared.",
-                    onAllow: {
-                        Task {
-                            await requestCalendarPermission()
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                step = .remindersPermission
-                            }
-                        }
-                    },
-                    onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .remindersPermission
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            // MARK: Optional notch widgets — Reminders
-            case .remindersPermission:
-                PermissionRequestView(
-                    icon: Image(systemName: "checklist"),
-                    title: "Enable Reminders Access",
-                    description: "Perch can show your scheduled reminders alongside your calendar events. Access to Reminders is needed to display your reminders.",
-                    privacyNote: "Your reminders data is only used to show your reminders and is never shared.",
-                    onAllow: {
-                        Task {
-                            await requestRemindersPermission()
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                step = .musicPermission
-                            }
-                        }
-                    },
-                    onSkip: {
-                        withAnimation(.easeInOut(duration: 0.6)) {
-                            step = .musicPermission
-                        }
-                    }
-                )
-                .transition(.opacity)
-
-            // MARK: Music source (configuration, not a permission)
-            case .musicPermission:
-                MusicControllerSelectionView(
-                    onContinue: {
                         withAnimation(.easeInOut(duration: 0.6)) {
                             ViewCoordinator.shared.firstLaunch = false
                             step = .hotkeyTutorial
@@ -257,8 +174,8 @@ struct OnboardingView: View {
         .onAppear { OnboardingProgress.record(step) }
         .onChange(of: step) { _, newStep in
             // Persist progress so a mid-onboarding relaunch (which macOS forces
-            // after granting Screen Recording / Accessibility) resumes at this
-            // step instead of restarting from the welcome screen.
+            // after granting Accessibility) resumes at this step instead of
+            // restarting from the welcome screen.
             OnboardingProgress.record(newStep)
         }
     }
@@ -276,28 +193,10 @@ struct OnboardingView: View {
         }
     }
 
-    /// Eyes: screen capture. `CGRequestScreenCaptureAccess` shows the system
-    /// prompt and returns the current status immediately; macOS only honors a
-    /// fresh grant after the next launch, which the screen copy calls out.
-    func requestScreenRecordingPermission() async {
-        // Remember that the user passed through this step so onboarding can auto-relaunch
-        // once at the end — macOS only applies a fresh Screen Recording grant on the next
-        // launch, and relaunching for them avoids the "still asking after I granted it"
-        // confusion on their very first prompt.
-        WindowPositionManager.noteScreenRecordingRequestedDuringOnboarding()
-        await Task.detached {
-            _ = CGRequestScreenCaptureAccess()
-        }.value
-    }
-
     // Hands (Accessibility) lives in AccessibilityPermissionStepView — it needs
     // its own request/verify/stale-entry flow rather than fire-and-advance.
-
-    func requestCalendarPermission() async {
-        _ = try? await calendarService.requestAccess(to: .event)
-    }
-
-    func requestRemindersPermission() async {
-        _ = try? await calendarService.requestAccess(to: .reminder)
-    }
+    //
+    // Eyes (Screen Recording) and the Calendar / Music sources are no longer
+    // requested here — Screen Recording is a just-in-time in-notch prompt and
+    // Calendar / Music connect from empty-state prompts in the notch.
 }

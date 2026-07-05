@@ -366,6 +366,7 @@ final class CompanionManager: ObservableObject {
         evaluator: browserSubagentManager
     )
 
+
     private lazy var notchAlertIngestionService = NotchAlertIngestionService(
         coordinator: notchAlertCoordinator,
         focusMonitor: systemFocusStatusMonitor
@@ -615,13 +616,16 @@ final class CompanionManager: ObservableObject {
         // well before the onboarding demo fires at ~40s into the video.
         _ = claudeAPI
 
-        // On EVERY launch where the Screen Recording grant is live — however it was
-        // obtained (onboarding, System Settings, or a re-grant after a signing change) —
-        // do one throwaway direct capture. This surfaces macOS 15/26's separate "bypass
-        // the private window picker" consent immediately and in-context at startup —
-        // including the OS's periodic/post-update re-consents — instead of ambushing
-        // the user mid-query. Silent when no consent is due; the result is discarded.
-        maybeRunScreenCaptureDirectAccessWarmup()
+        // NOTE: no startup screen-capture warm-up. Screen Recording is fully
+        // just-in-time now (asked via the notch consent prompt on the first
+        // screenshot), so macOS 15/26's separate "bypass the private window
+        // picker" consent surfaces naturally on that first real capture — never
+        // ambushing the user at launch before they've even opted into a screenshot.
+
+        // If a screenshot prompt was approved just before a first-grant relaunch,
+        // re-run it now that Screen Recording is live so the answer includes the
+        // screenshot the user asked for.
+        replayPendingScreenshotPromptIfNeeded()
 
         // If the user already completed onboarding AND all permissions are
         // still granted, show the cursor overlay immediately. If permissions
@@ -1514,7 +1518,10 @@ final class CompanionManager: ObservableObject {
     private func sendTranscriptToClaudeWithScreenshot(
         transcript: String,
         inputKind: String,
-        userAttachmentImages: [(data: Data, label: String)] = []
+        userAttachmentImages: [(data: Data, label: String)] = [],
+        // True only for the post-relaunch replay of a prompt whose screenshot
+        // consent the user already gave — skips re-asking now that the grant is live.
+        screenshotConsentPreapproved: Bool = false
     ) {
         currentResponseTask?.cancel()
         elevenLabsTTSClient.stopPlayback()
@@ -1614,8 +1621,49 @@ final class CompanionManager: ObservableObject {
                     // attachment-only turn skips the screenshot entirely.
                     let captures: [CompanionScreenCapture]
                     if needsScreen {
-                        captures = try await CompanionScreenCaptureUtility.captureAllScreensAsJPEG()
-                        PerchRunLog.append(run, .plan, "vision gate → screen NEEDED; captured \(captures.count) screen(s)")
+                        // Just-in-time screen-recording consent, shown as a pop-up in the
+                        // MIDDLE of the screen (Allow / Always Allow / Not Now). Skip the
+                        // ask when the user already chose "Always Allow" (persisted, so it
+                        // never asks again) or this is the post-relaunch replay of a prompt
+                        // they already approved.
+                        let alreadyAllowed = screenshotConsentPreapproved
+                            || PerchCapabilityToggles.isScreenshotAlwaysAllowedNow()
+                        let consented = alreadyAllowed ? true : requestScreenshotConsent(question: transcript)
+
+                        guard !Task.isCancelled else { return }
+
+                        if !consented {
+                            // User declined this screenshot — answer text/attachments only.
+                            captures = []
+                            PerchRunLog.append(run, .plan, "vision gate → screen NEEDED but consent declined; text-only")
+                        } else if WindowPositionManager.shouldTreatScreenRecordingPermissionAsGrantedForSessionLaunch() {
+                            captures = try await CompanionScreenCaptureUtility.captureAllScreensAsJPEG()
+                            Self.clearPendingScreenshotReplay()
+                            PerchRunLog.append(run, .plan, "vision gate → screen NEEDED; consent granted; captured \(captures.count) screen(s)")
+                        } else {
+                            // Consent given but the Screen Recording grant isn't live yet
+                            // (first time). It only applies after a relaunch, so request
+                            // it now, remember this prompt, and end the turn — once the
+                            // user enables Perch and it relaunches, the prompt re-runs
+                            // WITH the screenshot (replayPendingScreenshotPromptIfNeeded).
+                            Self.persistPendingScreenshotReplay(transcript: transcript, inputKind: inputKind)
+                            let destination = WindowPositionManager.requestScreenRecordingPermission()
+                            // First prompt this launch: the OS dialog is now guiding the
+                            // user, and macOS offers its own Quit & Reopen on grant. If
+                            // they've already seen that prompt, guide the relaunch ourselves.
+                            if destination == .systemSettings {
+                                promptScreenRecordingRelaunchIfNeeded()
+                            }
+                            if inputKind == "typed" {
+                                finalizeStreamingAssistant(
+                                    finalText: "Enable Screen Recording for Perch and I'll relaunch to answer that."
+                                )
+                            }
+                            voiceState = .idle
+                            PerchRunLog.append(run, .plan, "screenshot consent granted but grant not live — requested permission, awaiting relaunch")
+                            PerchRunLog.endRun(run)
+                            return
+                        }
                     } else {
                         captures = []
                         PerchRunLog.append(run, .plan, "vision gate → screen NOT needed; sending \(userAttachmentImages.count) user attachment(s) only")
@@ -2339,22 +2387,103 @@ final class CompanionManager: ObservableObject {
         }
     }
 
-    /// Shows a hardcoded error message as text at the notch when API credits
-    /// run out. This stays silent (no TTS) so it works even when ElevenLabs is
-    /// down — the message is surfaced in the on-screen bubble near the cursor.
-    /// Performs a single throwaway direct capture to surface macOS's "bypass the private
-    /// window picker" consent in-context after onboarding. No-op unless a warm-up is
-    /// pending and the classic Screen Recording grant is live in this process.
-    private func maybeRunScreenCaptureDirectAccessWarmup() {
-        guard WindowPositionManager.shouldRunScreenCaptureDirectAccessWarmup() else { return }
+
+    // MARK: - Just-in-time screenshot consent
+
+    /// Asks — via a native centered modal (`NSAlert`) — whether Perch may capture the
+    /// screen this turn, and returns the answer. Three choices:
+    ///   • "Allow"        → capture this once (does NOT persist — asks again next time).
+    ///   • "Always Allow" → capture and persist the pref, so it never asks again.
+    ///   • "Not Now"      → decline; answer text-only.
+    /// A modal is used deliberately over a custom floating panel: it is guaranteed to
+    /// surface in the middle of the screen AND to resolve (the run loop blocks until a
+    /// button is clicked), so a screen turn can never silently skip the prompt or hang
+    /// on a panel that failed to show. Only "Always Allow" mutes future prompts.
+    @MainActor
+    private func requestScreenshotConsent(question: String) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Let Perch see your screen?"
+        let trimmedQuestion = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        alert.informativeText = trimmedQuestion.isEmpty
+            ? "Perch will take one screenshot to answer what's on your screen."
+            : "Perch will take one screenshot to answer:\n\u{201C}\(trimmedQuestion)\u{201D}"
+        alert.addButton(withTitle: "Allow")          // .alertFirstButtonReturn
+        alert.addButton(withTitle: "Always Allow")   // .alertSecondButtonReturn
+        alert.addButton(withTitle: "Not Now")        // .alertThirdButtonReturn
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return true
+        case .alertSecondButtonReturn:
+            PerchCapabilityToggles.setScreenshotAlwaysAllowed(true)
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Re-runs a screenshot-context turn the user already approved, after a
+    /// first-ever Screen Recording grant + relaunch. A TYPED prompt re-opens the
+    /// chat window preloaded with the original message so the answer lands where
+    /// the user can see it; a VOICE prompt just answers aloud. Runs pre-approved,
+    /// so it captures immediately now that the grant is live.
+    private func runScreenshotTurn(transcript: String, inputKind: String) {
+        if inputKind == "typed" {
+            // Open the composer and preload the exchange (user bubble + streaming
+            // assistant bubble) exactly like a fresh typed submit, so the reply is
+            // visible instead of streaming into a closed, hidden thread.
+            NotchTextInputController.shared.activate()
+            appendTypedUserMessage(text: transcript, thumbnails: [])
+            beginTypedAssistantStreamingMessage()
+        }
+        sendTranscriptToClaudeWithScreenshot(
+            transcript: transcript,
+            inputKind: inputKind,
+            screenshotConsentPreapproved: true
+        )
+    }
+
+    /// UserDefaults key holding the prompt to replay after a first-grant relaunch.
+    private static let pendingScreenshotReplayKey = "perch.pendingScreenshotReplay"
+
+    /// Remembers the current prompt so it re-runs (with the screenshot) once the
+    /// Screen Recording grant goes live on the next launch.
+    private static func persistPendingScreenshotReplay(transcript: String, inputKind: String) {
+        UserDefaults.standard.set(
+            ["transcript": transcript, "inputKind": inputKind],
+            forKey: pendingScreenshotReplayKey
+        )
+    }
+
+    private static func clearPendingScreenshotReplay() {
+        UserDefaults.standard.removeObject(forKey: pendingScreenshotReplayKey)
+    }
+
+    /// On launch: if a screenshot prompt is pending from a pre-relaunch consent,
+    /// replay it — but only once the grant is actually live. If the user relaunched
+    /// without granting, drop it rather than loop on the relaunch prompt.
+    func replayPendingScreenshotPromptIfNeeded() {
+        guard let pending = UserDefaults.standard.dictionary(forKey: Self.pendingScreenshotReplayKey),
+              let transcript = pending["transcript"] as? String,
+              let inputKind = pending["inputKind"] as? String
+        else { return }
+
+        Self.clearPendingScreenshotReplay()
+
+        guard WindowPositionManager.shouldTreatScreenRecordingPermissionAsGrantedForSessionLaunch() else {
+            // Grant still not live (user didn't enable it) — abandon the replay.
+            return
+        }
+
         Task { @MainActor [weak self] in
-            guard self != nil else { return }
-            // A brief settle so the window server / overlays are up before macOS shows
-            // the consent, and the capture attribution is clean.
-            try? await Task.sleep(for: .seconds(1))
-            // Small maxDimension keeps this cheap — we only need SCK to fire the consent.
-            _ = try? await CompanionScreenCaptureUtility.captureAllScreensAsJPEG(maxDimension: 320)
-            PerchRunLog.append(nil, .state, "screen-capture direct-access warm-up fired")
+            // Let the notch / audio pipeline settle before re-running the turn.
+            try? await Task.sleep(for: .seconds(2))
+            guard let self, !Task.isCancelled else { return }
+            // Re-run the original prompt WITH the screenshot now that the grant is
+            // live: typed re-opens the chat preloaded with what the user said; voice
+            // just answers aloud.
+            self.runScreenshotTurn(transcript: transcript, inputKind: inputKind)
         }
     }
 

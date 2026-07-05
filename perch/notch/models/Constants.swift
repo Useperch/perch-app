@@ -39,16 +39,32 @@ enum HideNotchOption: String, Defaults.Serializable {
 // Define notification names at file scope
 extension Notification.Name {
     static let mediaControllerChanged = Notification.Name("mediaControllerChanged")
+    /// Posted by the notch's "Connect Music" prompt; the app opens the
+    /// standalone music-source picker in response.
+    static let connectMusicRequested = Notification.Name("connectMusicRequested")
 }
 
 // Media controller types for selection in settings
 enum MediaControllerType: String, CaseIterable, Identifiable, Defaults.Serializable {
+    case none = "None"
     case nowPlaying = "Now Playing"
     case appleMusic = "Apple Music"
     case spotify = "Spotify"
     case youtubeMusic = "YouTube Music"
-    
+
     var id: String { self.rawValue }
+
+    /// The sources a user can actually choose during onboarding-style
+    /// selection. `.none` is an internal "not yet connected" sentinel (drives
+    /// the Connect Music prompt) and must never appear there as a source.
+    static var selectableCases: [MediaControllerType] {
+        allCases.filter { $0 != .none }
+    }
+
+    /// User-facing label. `.none` reads as a disconnect option in Settings.
+    var displayName: String {
+        self == .none ? "Not Connected" : rawValue
+    }
 }
 
 // Sneak peek styles for selection in settings
@@ -107,7 +123,6 @@ extension Defaults.Keys {
     static let showNotHumanFace = Key<Bool>("showNotHumanFace", default: false)
     static let tileShowLabels = Key<Bool>("tileShowLabels", default: false)
     static let showCalendar = Key<Bool>("showCalendar", default: true)
-    static let hideCompletedReminders = Key<Bool>("hideCompletedReminders", default: true)
     static let sliderColor = Key<SliderColorEnum>(
         "sliderUseAlbumArtColor",
         default: SliderColorEnum.white
@@ -189,13 +204,11 @@ extension Defaults.Keys {
     // Show or hide the title bar
     static let hideTitleBar = Key<Bool>("hideTitleBar", default: true)
     
-    // Helper to determine the default media controller based on NowPlaying deprecation status
+    // The default media controller. `.none` = nothing connected yet, so the
+    // notch shows a "Connect Music" prompt until the user picks a source
+    // (music selection is deferred out of onboarding).
     static var defaultMediaController: MediaControllerType {
-        if MusicManager.shared.isNowPlayingDeprecated {
-            return .appleMusic
-        } else {
-            return .nowPlaying
-        }
+        .none
     }
 
     static let didClearLegacyURLCacheV1 = Key<Bool>("didClearLegacyURLCache_v1", default: false)

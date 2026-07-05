@@ -21,15 +21,10 @@ class CalendarService: CalendarServiceProviding {
     
     @MainActor
     func requestAccess(to type: EKEntityType) async throws -> Bool {
+        // Only calendar events are supported (Reminders were removed).
+        guard type == .event else { return false }
         if #available(macOS 14.0, *) {
-            switch type {
-            case .event:
-                return try await store.requestFullAccessToEvents()
-            case .reminder:
-                return try await store.requestFullAccessToReminders()
-            @unknown default:
-                return false
-            }
+            return try await store.requestFullAccessToEvents()
         } else {
             return try await store.requestAccess(to: type)
         }
@@ -46,11 +41,11 @@ class CalendarService: CalendarServiceProviding {
     
     func calendars() async -> [CalendarModel] {
         var calendars: [EKCalendar] = []
-        
-        for type in [EKEntityType.event, .reminder] where hasAccess(to: type) {
-            calendars.append(contentsOf: store.calendars(for: type))
+
+        if hasAccess(to: .event) {
+            calendars.append(contentsOf: store.calendars(for: .event))
         }
-        
+
         return calendars.map { CalendarModel(from: $0) }
     }
     
@@ -58,12 +53,11 @@ class CalendarService: CalendarServiceProviding {
         let allCalendars = await self.calendars()
         let filteredCalendars = allCalendars.filter { ids.isEmpty || ids.contains($0.id) }
         let ekCalendars = filteredCalendars.compactMap { calendarModel in
-            store.calendars(for: .event).first { $0.calendarIdentifier == calendarModel.id } ??
-            store.calendars(for: .reminder).first { $0.calendarIdentifier == calendarModel.id }
+            store.calendars(for: .event).first { $0.calendarIdentifier == calendarModel.id }
         }
-        
+
         var events: [EventModel] = []
-        
+
         // Fetch regular events
         if hasAccess(to: .event) {
             let eventCalendars = ekCalendars.filter { store.calendars(for: .event).contains($0) }
@@ -71,50 +65,8 @@ class CalendarService: CalendarServiceProviding {
             let ekEvents = store.events(matching: predicate)
             events.append(contentsOf: ekEvents.compactMap { EventModel(from: $0) })
         }
-        
-        // Fetch reminders
-        if hasAccess(to: .reminder) {
-            let reminderCalendars = ekCalendars.filter { store.calendars(for: .reminder).contains($0) }
-            events.append(contentsOf: await fetchReminders(from: start, to: end, calendars: reminderCalendars))
-        }
-        
+
         return events.sorted { $0.start < $1.start }
-    }
-    
-    private func fetchReminders(from start: Date, to end: Date, calendars: [EKCalendar]) async -> [EventModel] {
-        return await withCheckedContinuation { continuation in
-            // Create predicate for reminders with due dates in the specified range
-            let predicate = store.predicateForReminders(in: calendars)
-            
-            store.fetchReminders(matching: predicate) { reminders in
-                
-                let filteredReminders = (reminders ?? []).filter { reminder in
-                    // Check if reminder has a due date within our range
-                    guard let dueDate = reminder.dueDateComponents?.date else {
-                        return false
-                    }
-                    
-                    return dueDate >= start && dueDate <= end
-                }
-                
-                // Convert to EventModel
-                let eventModels = filteredReminders.compactMap { reminder in
-                    EventModel(from: reminder)
-                }
-                
-                continuation.resume(returning: eventModels)
-            }
-        }
-    }
-    
-    func setReminderCompleted(reminderID: String, completed: Bool) async {
-        guard let reminder = store.calendarItem(withIdentifier: reminderID) as? EKReminder else { return }
-        reminder.isCompleted = completed
-        do {
-            try store.save(reminder, commit: true)
-        } catch {
-            print("Failed to update reminder completion: \(error)")
-        }
     }
 }
 
@@ -127,8 +79,7 @@ extension CalendarModel {
             account: calendar.accountTitle,
             title: calendar.title,
             color: calendar.color,
-            isSubscribed: calendar.isSubscribed || calendar.isDelegate,
-            isReminder: calendar.allowedEntityTypes.contains(.reminder)
+            isSubscribed: calendar.isSubscribed || calendar.isDelegate
         )
     }
 }
@@ -150,32 +101,7 @@ extension EventModel {
             calendar: .init(from: calendar),
             participants: .init(from: event),
             timeZone: calendar.isSubscribed || calendar.isDelegate ? nil : event.timeZone,
-            hasRecurrenceRules: event.hasRecurrenceRules || event.isDetached,
-            priority: nil
-        )
-    }
-    
-    init?(from reminder: EKReminder) {
-        guard let calendar = reminder.calendar,
-              let dueDateComponents = reminder.dueDateComponents,
-              let date = Calendar.current.date(from: dueDateComponents)
-        else { return nil }
-        
-        self.init(
-            id: reminder.calendarItemIdentifier,
-            start: date,
-            end: Calendar.current.endOfDay(for: date),
-            title: reminder.title ?? "",
-            location: reminder.location,
-            notes: reminder.notes,
-            url: reminder.url,
-            isAllDay: dueDateComponents.hour == nil,
-            type: .reminder(completed: reminder.isCompleted),
-            calendar: .init(from: calendar),
-            participants: [],
-            timeZone: calendar.isSubscribed || calendar.isDelegate ? nil : reminder.timeZone,
-            hasRecurrenceRules: reminder.hasRecurrenceRules,
-            priority: .init(from: reminder.priority)
+            hasRecurrenceRules: event.hasRecurrenceRules || event.isDetached
         )
     }
 }
@@ -226,21 +152,6 @@ extension Participant {
     }
 }
 
-extension Priority {
-    init?(from p: Int) {
-        switch p {
-        case 1...4:
-            self = .high
-        case 5:
-            self = .medium
-        case 6...9:
-            self = .low
-        default:
-            return nil
-        }
-    }
-}
-
 // MARK: - Helper Extensions
 
 private extension EKCalendar {
@@ -273,11 +184,5 @@ private extension EKEvent {
         let startOfDay = calendar.startOfDay(for: startDate)
         let endOfDay = calendar.dateInterval(of: .day, for: endDate)?.end
         return startDate == startOfDay && endDate == endOfDay
-    }
-}
-
-private extension Calendar {
-    func endOfDay(for date: Date) -> Date {
-        dateInterval(of: .day, for: date)?.end ?? date
     }
 }

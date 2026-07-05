@@ -29,6 +29,7 @@ struct ContentView: View {
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
 
+
     @State private var gestureProgress: CGFloat = .zero
 
     /// Keeps the voice tracing line mounted briefly after voice ends so it can
