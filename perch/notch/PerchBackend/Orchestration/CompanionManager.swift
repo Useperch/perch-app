@@ -1342,9 +1342,9 @@ final class CompanionManager: ObservableObject {
     """
 
     /// Text-only sibling of `companionVoiceResponseSystemPrompt`, used when the
-    /// vision gate decides this turn does NOT need the screen (served by the fast
-    /// Cerebras backend). Same persona and brevity rules, but there is no
-    /// screenshot this turn — so it never points and never references the screen.
+    /// vision gate decides this turn does NOT need the screen (answered imageless
+    /// over /chat). Same persona and brevity rules, but there is no screenshot
+    /// this turn — so it never points and never references the screen.
     /// DO (background task) and CLARIFY still work; SHOW just answers directly.
     private static let companionTextOnlyResponseSystemPrompt = """
     you're perch, a friendly always-on companion that lives in the user's menu bar. the user just spoke or typed to you, and this turn you are answering WITHOUT looking at their screen (no screenshot is available). your reply will be spoken aloud via text-to-speech, so write the way you'd actually talk. this is an ongoing conversation — you remember everything they've said before.
@@ -1569,20 +1569,20 @@ final class CompanionManager: ObservableObject {
                 }
 
                 // Vision gate: decide whether this turn needs to see the screen.
-                // `.always` (or an unconfigured Cerebras key) keeps the original
-                // always-capture behavior; otherwise a fast Cerebras text-only
-                // classifier decides. A "no" routes the whole answer through the
-                // text-only Cerebras path and never captures a screenshot.
+                // `.always` keeps the original always-capture behavior; otherwise a
+                // fast YES/NO classifier (over the same /chat → OpenRouter path)
+                // decides. A "no" routes the whole answer through the text-only path
+                // and never captures a screenshot.
                 let needsScreen: Bool
                 if !PerchCapabilityToggles.isEyesEnabledNow() {
                     // Eyes is turned off in the menu → Perch never captures the
                     // screen this turn, regardless of what the vision gate would
                     // have decided. The answer routes through the text-only path.
                     needsScreen = false
-                } else if VisionGateConfiguration.mode == .always || !CerebrasConfiguration.isConfigured {
+                } else if VisionGateConfiguration.mode == .always {
                     needsScreen = true
                 } else {
-                    needsScreen = await CerebrasClient.shared.classifyNeedsScreen(
+                    needsScreen = await claudeAPI.classifyNeedsScreen(
                         transcript: transcript,
                         recentHistory: historyForAPI
                     )
@@ -1717,26 +1717,33 @@ final class CompanionManager: ObservableObject {
                     )
                     fullResponseText = responseText
                 } else {
-                    // ===== Text-only path: no screenshot → Cerebras =====
+                    // ===== Text-only path: no screenshot → OpenRouter (imageless) =====
+                    // Same /chat streaming call as the vision path, just with no
+                    // images — so the gate saves a screen capture + vision round-trip
+                    // on questions that don't need to see the screen.
                     screenCaptures = []
                     PerchRunLog.append(
                         run, .plan,
-                        "vision gate → screen NOT needed; Cerebras text path (\(CerebrasConfiguration.model))"
+                        "vision gate → screen NOT needed; text-only path"
                     )
                     PerchRunLog.appendBlock(
-                        run, .plan, "system prompt sent to cerebras",
+                        run, .plan, "system prompt sent to claude (text-only)",
                         body: textOnlySystemPrompt
                     )
                     PerchRunLog.appendBlock(
-                        run, .plan, "conversation history sent to cerebras (\(historyForAPI.count) exchange(s))",
+                        run, .plan, "conversation history sent to claude (\(historyForAPI.count) exchange(s))",
                         body: conversationHistoryDump.isEmpty ? "(none)" : conversationHistoryDump
                     )
-                    PerchRunLog.appendBlock(run, .plan, "user prompt sent to cerebras", body: effectiveUserPrompt)
+                    PerchRunLog.appendBlock(run, .plan, "user prompt sent to claude (text-only)", body: effectiveUserPrompt)
 
-                    let (responseText, _) = try await CerebrasClient.shared.respondTextOnlyStreaming(
+                    let (responseText, _) = try await claudeAPI.analyzeImageStreaming(
+                        images: [],
                         systemPrompt: textOnlySystemPrompt,
                         conversationHistory: historyForAPI,
                         userPrompt: effectiveUserPrompt,
+                        // Same billable "message" tag as the vision path so the
+                        // text-only answer still counts toward the free-tier cap.
+                        feature: "companion",
                         onTextChunk: { [weak self] accumulated in
                             // Stream into the typed-chat bubble for typed turns; voice
                             // stays spinner-only until TTS plays.

@@ -3,12 +3,12 @@
 //  Perch
 //
 //  The vision gate decides, per voice/typed query, whether Perch needs to look
-//  at the user's screen. When it doesn't, the answer is served by the fast
-//  text-only Cerebras backend instead of the multimodal OpenRouter path — saving
-//  a screenshot capture and a vision round-trip on questions that don't need it.
+//  at the user's screen. When it doesn't, the answer is served imageless over the
+//  same /chat → OpenRouter path (no screenshot) — saving a screen capture and a
+//  vision round-trip on questions that don't need it.
 //
-//  This enum only reads the MODE toggle. The actual classifier and the text-only
-//  answer live in CerebrasClient; the routing branch lives in CompanionManager.
+//  This enum only reads the MODE toggle. The actual classifier lives in ClaudeAPI
+//  (classifyNeedsScreen); the routing branch lives in CompanionManager.
 //
 
 import Foundation
@@ -17,9 +17,9 @@ enum VisionGateConfiguration {
 
     /// How the voice/typed answer lane decides whether to capture the screen.
     enum Mode {
-        /// Default: ask the Cerebras classifier per query whether the screen is
-        /// needed. If Cerebras is unconfigured or the classifier errors, the
-        /// caller falls back to capturing the screen (today's behavior).
+        /// Default: ask the classifier per query whether the screen is needed.
+        /// If the classifier errors, the caller falls back to capturing the
+        /// screen — reliability over savings.
         case auto
         /// Bypass the gate entirely — always capture the screen and use the
         /// multimodal path. Byte-for-byte the pre-gate behavior.

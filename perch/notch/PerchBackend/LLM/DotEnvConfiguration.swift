@@ -7,7 +7,7 @@
 //  The app is usually GUI-launched (`open Perch.app`), where the process
 //  inherits only launchd's minimal environment — so a shell `export` never
 //  reaches it. This loader gives a launch-method-independent place to read
-//  repo-local config (the Cerebras / vision-gate keys, plus repo-local keys like
+//  repo-local config (the vision-gate mode toggle, plus repo-local keys like
 //  EXA_API_KEY overlaid onto spawned subprocesses).
 //  Callers should still check `ProcessInfo` FIRST, so a terminal launch with an
 //  exported override still wins over the file.

@@ -3,7 +3,7 @@
 //  Perch
 //
 //  A deterministic safety net in front of the vision gate's LLM classifier
-//  (CerebrasClient.classifyNeedsScreen). Some user messages point unambiguously
+//  (ClaudeAPI.classifyNeedsScreen). Some user messages point unambiguously
 //  at something the user is currently looking at — "which of these movies are on
 //  netflix?", "what does this error mean?", "summarize what's on my screen". The
 //  tiny classifier model has been observed to misroute exactly these to the blind
