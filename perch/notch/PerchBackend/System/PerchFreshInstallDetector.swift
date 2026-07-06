@@ -2,28 +2,36 @@
 //  PerchFreshInstallDetector.swift
 //  Perch
 //
-//  A genuinely fresh install — a newly downloaded copy of the app, whether it
-//  lands at a new location or replaces the existing /Applications/Perch.app —
-//  must start at true onboarding with permissions re-prompted and identity
-//  cleared. Merely RELAUNCHING the same installed binary must keep everything
-//  (settings, permissions, sign-in). A Sparkle auto-update is the one binary
-//  replacement that is NOT a fresh install: the user already onboarded, so it
-//  is exempted explicitly via a one-shot marker set during the update relaunch.
+//  Onboarding, permissions, and sign-in reset on a FRESH DOWNLOAD but never on
+//  an in-place UPDATE or a plain RELAUNCH. The three are told apart like this:
 //
-//  How the three cases are told apart:
-//    • restart            → same bundle path AND same bundle creation date → keep
-//    • fresh download      → creation date changed (a new copy was written), or a
-//                            new location → wipe UserDefaults + clear identity
-//    • Sparkle auto-update → binary is replaced too, but markPendingUpdateRelaunch()
-//                            was called first, so this launch is exempt from reset
+//    • Sparkle auto-update → the outgoing build calls markPendingUpdateRelaunch()
+//                            before it hands off, so the next launch sees the
+//                            one-shot marker and keeps everything.
+//    • plain relaunch       → the fingerprint (bundle path + creation date) is
+//                            byte-identical to what was stored → keep everything.
+//    • fresh download       → anything else: a newly written copy has a new bundle
+//                            creation date (a new location changes the path too),
+//                            or the stored fingerprint predates this scheme → wipe
+//                            UserDefaults and clear the stored identity.
 //
-//  The fingerprint (bundle path + creation epoch) and the pending-update marker
-//  live in a tiny sidecar plist that survives preference wipes, so the decision
-//  is made before any UserDefaults key is trusted.
+//  The fingerprint and the pending-update marker live in a tiny sidecar plist that
+//  survives preference wipes, so the decision is made before any UserDefaults key
+//  is trusted.
 //
-//  Dev builds (running from a repo checkout) deliberately skip the creation-date
-//  component so rebuilding — which recreates Perch.app with a new creation date —
-//  does not look like a reinstall and nuke dogfood state on every build.
+//  Caveat we cannot fix in code: macOS keeps Accessibility/Screen-Recording/Mic
+//  grants keyed to the app's signing identity + bundle id, so reinstalling the
+//  same signed build leaves those OS grants in place — the app re-shows its
+//  onboarding permission screens but cannot force the system dialogs again.
+//
+//  Transition note: the marker only protects updates from builds that already ship
+//  this code. A user auto-updating from an OLDER build (which cannot set the marker)
+//  is reset once on that update — an unavoidable one-time migration; every update
+//  after that is marker-protected.
+//
+//  Dev builds (running from a repo checkout) use a stable "dev" sentinel instead of
+//  the creation date so rebuilding — which recreates Perch.app — is not mistaken for
+//  a reinstall, and they never clear the dogfood identity.
 //
 
 import Foundation
@@ -53,14 +61,14 @@ enum PerchFreshInstallDetector {
         writeState(state)
     }
 
-    /// Wipes all UserDefaults for this bundle and clears the stored identity only
-    /// when the app is a genuinely fresh copy (new location or newly written
-    /// binary), never for an in-place Sparkle update and never for a plain
-    /// restart. Safe on every launch; no-op when the install is unchanged.
+    /// Wipes all UserDefaults for this bundle and clears the stored identity only on
+    /// a genuinely fresh download — never for an in-place Sparkle update and never
+    /// for a plain relaunch. Safe on every launch; no-op when the install is
+    /// unchanged.
     static func resetPreferencesIfFreshInstall(defaults: UserDefaults = .standard) {
         let currentFingerprint = makeInstallFingerprint()
         var state = readState()
-        let storedFingerprint = (state[fingerprintKey] as? String).map(normalizeStoredFingerprint)
+        let storedFingerprint = state[fingerprintKey] as? String
         let isPendingUpdate = (state[pendingUpdateKey] as? Bool) ?? false
         guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return }
 
@@ -72,29 +80,21 @@ enum PerchFreshInstallDetector {
             writeState(state)
         }
 
-        // A Sparkle auto-update replaces the binary (new creation date) but is not
-        // a fresh install — adopt the new fingerprint and keep all state.
+        // In-place Sparkle update: the binary changed but the user already onboarded.
         if isPendingUpdate { return }
 
-        if let storedFingerprint {
-            guard isFreshInstall(stored: storedFingerprint, current: currentFingerprint) else { return }
-            clearPreferencesDomain(named: bundleIdentifier, defaults: defaults, reason: "fresh install")
-            clearInstallIdentity()
-            return
-        }
+        // Exact same install relaunched: path AND creation date match → keep state.
+        if storedFingerprint == currentFingerprint { return }
 
-        // First launch after this tracker shipped: install-state did not exist yet,
-        // so onboarding keys (firstLaunch=false, etc.) may be stale from a prior DMG
-        // copy. Re-onboard once, but do NOT clear identity — this fires for every
-        // existing user upgrading from a pre-tracker build, who must stay signed in.
-        if let existingDomain = defaults.persistentDomain(forName: bundleIdentifier),
-           !existingDomain.isEmpty {
-            clearPreferencesDomain(
-                named: bundleIdentifier,
-                defaults: defaults,
-                reason: "stale preferences on first fingerprint"
-            )
-        }
+        // Anything else is a fresh copy (new download, new location, or a fingerprint
+        // predating this scheme). Reset — unless this is a truly pristine first launch
+        // with nothing to clear, so we don't emit a spurious reset on a clean machine.
+        let hasExistingState = storedFingerprint != nil
+            || !(defaults.persistentDomain(forName: bundleIdentifier)?.isEmpty ?? true)
+        guard hasExistingState else { return }
+
+        clearPreferencesDomain(named: bundleIdentifier, defaults: defaults, reason: "fresh install")
+        clearInstallIdentity()
     }
 
     private static func clearPreferencesDomain(
@@ -110,8 +110,10 @@ enum PerchFreshInstallDetector {
     /// Removes the persisted install identity (installId, email, install token) so a
     /// fresh download starts fully signed out and re-enters onboarding's email step.
     /// For real users this file lives outside the app bundle (`~/.perch-support/`),
-    /// so deleting the app alone would otherwise leave them signed in.
+    /// so deleting the app alone would otherwise leave them signed in. Dev/repo
+    /// builds keep their dogfood identity (seeded from dev-autologin) untouched.
     private static func clearInstallIdentity() {
+        guard PerchSupportPaths.repoRootURL == nil else { return }
         let identityURL = PerchSupportPaths.file("install-identity.json")
         do {
             try FileManager.default.removeItem(at: identityURL)
@@ -124,7 +126,7 @@ enum PerchFreshInstallDetector {
     }
 
     /// Fingerprints the install by WHERE it lives and WHEN its bundle was written.
-    /// A plain restart keeps both identical; a freshly downloaded copy changes the
+    /// A plain relaunch keeps both identical; a freshly downloaded copy changes the
     /// creation date (a new location changes the path too). Deliberately excludes
     /// version/build — a Sparkle update is told apart by the pending-update marker,
     /// not by version. Dev/repo builds use a stable sentinel instead of the real
@@ -144,43 +146,6 @@ enum PerchFreshInstallDetector {
         }
         return "0"
     }
-
-    /// True when `current` represents a different install than `stored`.
-    ///
-    /// Back-compat: a stored fingerprint with no creation-date component (a legacy
-    /// `version|path|mtime` value, or the path-only form shipped between the two)
-    /// is compared on path alone, so an existing user upgrading INTO this build at
-    /// the same location is treated as an update — not a reinstall — and is neither
-    /// reset nor signed out. Only once a path+creation fingerprint has been written
-    /// does the creation date participate in the comparison.
-    private static func isFreshInstall(stored: String, current: String) -> Bool {
-        let storedParts = parseFingerprint(stored)
-        let currentParts = parseFingerprint(current)
-        guard let storedBirth = storedParts.birth else {
-            return storedParts.path != currentParts.path
-        }
-        return storedParts.path != currentParts.path || storedBirth != currentParts.birth
-    }
-
-    /// Splits a fingerprint into its path and (optional) creation-date component.
-    /// Handles the new `v2|path|birth` form, the legacy `version|path|mtime` form
-    /// (path only — mtime is not a reliable creation signal), and a bare path.
-    private static func parseFingerprint(_ value: String) -> (path: String, birth: String?) {
-        let components = value.components(separatedBy: "|")
-        if components.first == fingerprintVersionPrefix, components.count == 3 {
-            return (components[1], components[2])
-        }
-        if components.count == 3 {
-            return (components[1], nil)
-        }
-        return (value, nil)
-    }
-
-    /// Builds up to and including v2.7.6 stored the fingerprint as
-    /// `version(build)|bundlePath|mtime`; a later build stored a bare bundle path.
-    /// Both are handled by `parseFingerprint`, so this now just passes the raw value
-    /// through — kept as the single normalization seam for stored fingerprints.
-    private static func normalizeStoredFingerprint(_ stored: String) -> String { stored }
 
     private static func readState() -> [String: Any] {
         (NSDictionary(contentsOf: installStateURL) as? [String: Any]) ?? [:]
