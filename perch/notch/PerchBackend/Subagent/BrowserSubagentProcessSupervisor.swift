@@ -43,6 +43,17 @@ final class BrowserSubagentProcessSupervisor {
     private static let workerBaseURL = AppBundleConfiguration.stringValue(forKey: "WorkerBaseURL")
         ?? "https://your-worker-name.your-subdomain.workers.dev"
 
+    /// Whether this build opted into the DEV-ONLY on-computer browser lane, via the
+    /// Info.plist `PerchLocalBrowserEnabled` flag. Dev builds set it; the signed release
+    /// strips it, so it is false (the safe default) for beta users — the sidecar then
+    /// never registers the browser tool and no local Chrome is launched.
+    private static var isLocalBrowserEnabled: Bool {
+        guard let raw = AppBundleConfiguration.stringValue(forKey: "PerchLocalBrowserEnabled") else {
+            return false
+        }
+        return ["1", "true", "yes", "on"].contains(raw.lowercased())
+    }
+
     private var sidecarProcess: Process?
 
     /// The unix socket path the sidecar binds (read once from Info.plist).
@@ -186,6 +197,15 @@ final class BrowserSubagentProcessSupervisor {
         // sidecar via build_manifest/save_manifest) are visible to
         // ComposioManifestReader + ActiveIntegrationsStore in the notch UI.
         environment["PERCH_SUPPORT_DIRECTORY"] = PerchSupportPaths.supportDirectoryURL.path
+
+        // The on-computer browser lane (local Playwright / Chrome) is DEV-ONLY. Enable
+        // it in the sidecar ONLY when this build opted in via the Info.plist flag —
+        // dev builds set PerchLocalBrowserEnabled (see build-perch-dev.sh); the signed
+        // release strips it (see package-release.sh). Absent/false → the sidecar never
+        // registers the browser tool, so no local Chrome is launched for beta users.
+        if Self.isLocalBrowserEnabled {
+            environment["PERCH_LOCAL_BROWSER_ENABLED"] = "1"
+        }
 
         process.environment = environment
 

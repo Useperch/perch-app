@@ -109,7 +109,10 @@ cp -R "$SOURCE_APP" "$APP_COPY"
 # ── 3. Clear machine-specific Info.plist paths ───────────────────────────────
 echo "▶︎ Clearing machine-specific Info.plist paths…"
 PLIST="$APP_COPY/Contents/Info.plist"
-for key in BrowserSubagentPath PerchRepoRoot BrowserSubagentSocketPath; do
+# PerchLocalBrowserEnabled is the DEV-ONLY on-computer browser opt-in — stripped here
+# so a release NEVER enables the local browser lane for beta users, regardless of how
+# the app was built. See the /sync skill's "DEV-ONLY CAPABILITIES" section.
+for key in BrowserSubagentPath PerchRepoRoot BrowserSubagentSocketPath PerchLocalBrowserEnabled; do
     plutil -remove "$key" "$PLIST" 2>/dev/null || true
 done
 

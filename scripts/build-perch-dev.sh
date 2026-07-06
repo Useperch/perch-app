@@ -95,6 +95,11 @@ else
 fi
 plist_set BrowserSubagentPath        "${SIDECAR_DIR}"
 plist_set BrowserSubagentSocketPath  "${REPO_DIR}/support/ipc/subagent.sock"
+# Dev builds opt into the on-computer browser lane (local Playwright/Chrome). This is
+# DEV-ONLY: the app injects PERCH_LOCAL_BROWSER_ENABLED=1 into the sidecar when this is
+# set, so the browser tool registers and local Chrome can launch. The signed release
+# strips this key (package-release.sh) → off for beta users.
+plist_set PerchLocalBrowserEnabled   "1"
 
 # Optional: point the dev build at a LOCAL worker (the backend worktree's
 # local_dev_server.py on http://localhost:8787) instead of the prod Cloudflare
