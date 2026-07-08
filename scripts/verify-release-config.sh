@@ -170,6 +170,16 @@ else
   fail "PerchLocalBrowserEnabled is present in a beta build — the dev-only browser lane leaked to users"
 fi
 
+# PerchComposioDirect is the DEV-ONLY flag that reaches Composio directly with the
+# sidecar's own dev key. If it leaked into a beta build, the release would bypass the
+# Worker proxy — shipping the real project key on user machines and dropping per-user
+# isolation. Beta must ALWAYS route Composio through the Worker.
+if plist_absent PerchComposioDirect; then
+  pass "PerchComposioDirect is not baked into the release (Composio stays behind the Worker proxy for beta)"
+else
+  fail "PerchComposioDirect is present in a beta build — Composio would bypass the Worker proxy (key on-device + cross-tenant)"
+fi
+
 # ── 8. The baked-in gateway URL actually responds (live) ──────────────────────
 if [ "$NO_NETWORK" = "0" ] && [ -n "$WORKER_URL" ] && [[ "$WORKER_URL" == https://* ]]; then
   section "Live gateway reachability (the URL this build will actually call)"
