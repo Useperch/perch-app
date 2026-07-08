@@ -180,6 +180,15 @@ else
   fail "PerchComposioDirect is present in a beta build — Composio would bypass the Worker proxy (key on-device + cross-tenant)"
 fi
 
+# PerchWarmSidecarOnLaunch is the DEV-ONLY flag that eager-spawns the sidecar at app
+# launch (so the first agent action isn't cold). Beta must spawn it lazily on first use.
+# Stripped by package-release.sh — assert it here too so a broken strip can't ship it.
+if plist_absent PerchWarmSidecarOnLaunch; then
+  pass "PerchWarmSidecarOnLaunch is not baked into the release (sidecar stays lazy-spawned for beta)"
+else
+  fail "PerchWarmSidecarOnLaunch is present in a beta build — the dev-only eager warm-up leaked to users"
+fi
+
 # ── 8. The baked-in gateway URL actually responds (live) ──────────────────────
 if [ "$NO_NETWORK" = "0" ] && [ -n "$WORKER_URL" ] && [[ "$WORKER_URL" == https://* ]]; then
   section "Live gateway reachability (the URL this build will actually call)"
