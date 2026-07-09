@@ -9,7 +9,9 @@ of your display. Hold `⌃ Control + ⌥ Option` to talk, or tap **Control** twi
 
 **macOS only** — works best on a MacBook with a notch, running **macOS 14.2 or newer** (Apple Silicon).
 
-## Setup
+## Setup 
+
+!! This is just the frontend. Email me for backend API key.
 
 For installation instructions, see **[SETUP.md](./SETUP.md)** — includes a copy-paste install for agents, a DMG download fallback, and build-from-source instructions. Note that this is in Beta, so there are many bugs. 
 
