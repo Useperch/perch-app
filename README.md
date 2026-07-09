@@ -12,7 +12,7 @@ of your display. Hold `⌃ Control + ⌥ Option` to talk, or tap **Control** twi
 ## Setup 
 
 > [!IMPORTANT] 
-> This is just the frontend. Email me for backend API key.
+> Email me for API key!
 
 For installation instructions, see **[SETUP.md](./SETUP.md)** — includes a copy-paste install for agents, a DMG download fallback, and build-from-source instructions. Note that this is in Beta, so there are many bugs. 
 
