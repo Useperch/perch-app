@@ -1,4 +1,4 @@
-# Welcome to Perch!
+# Welcome to Perch! (In Beta)
 
 <p align="center"><img src="brand/perch-demo.gif" alt="Perch demo"></p>
 
