@@ -1,4 +1,4 @@
-# Welcome to Perch!
+# Welcome to Perch! (In Beta)
 
 <p align="center"><img src="brand/perch-demo.gif" alt="Perch demo"></p>
 
@@ -9,9 +9,12 @@ of your display. Hold `⌃ Control + ⌥ Option` to talk, or tap **Control** twi
 
 **macOS only** — works best on a MacBook with a notch, running **macOS 14.2 or newer** (Apple Silicon).
 
-## Setup
+## Setup 
 
-For installation instructions, see **[SETUP.md](./SETUP.md)** — includes a copy-paste install for agents, a DMG download fallback, and build-from-source instructions.
+> [!IMPORTANT] 
+> Email me for API key!
+
+For installation instructions, see **[SETUP.md](./SETUP.md)** — includes a copy-paste install for agents, a DMG download fallback, and build-from-source instructions. Note that this is in Beta, so there are many bugs. 
 
 ## Say Hi!
 Please email with feedback (or just to say hi!): kare6625@colorado.edu
