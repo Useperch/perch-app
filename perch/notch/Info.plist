@@ -19,7 +19,7 @@
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Used to carry out desktop tasks for you after you show a workflow once.</string>
+	<string>Used to carry out tasks you ask Perch to do in your Mac apps.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Used to show your upcoming events in the notch.</string>
 	<key>NSCalendarsUsageDescription</key>

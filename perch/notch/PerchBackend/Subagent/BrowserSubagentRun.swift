@@ -68,6 +68,10 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
     /// A short noun for the artifact this run produced ("Google Doc", "Figma file"),
     /// paired with `finalUrl` so the Agents-tab card can label the deliverable link.
     @Published private(set) var deliverableLabel: String?
+    /// The sidecar's user-facing failure line, set when the run ends in `.error`
+    /// (e.g. "I couldn't complete that — …"). `CompanionManager` speaks/shows this
+    /// so a failed task never ends silently. `nil` until the run errors.
+    @Published private(set) var errorMessage: String?
 
     /// True while the user is hovering THIS run's top-right swarm triangle. The
     /// cursor overlay (which polls the mouse, so it works regardless of window key
@@ -235,7 +239,11 @@ final class BrowserSubagentRun: ObservableObject, Identifiable {
         appendStep(deliverableLabel.map { "Created \($0)" } ?? "Done")
     }
 
-    func markErrored() {
+    func markErrored(message: String? = nil) {
+        let trimmedMessage = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedMessage, !trimmedMessage.isEmpty {
+            errorMessage = trimmedMessage
+        }
         subagentState = .error
         appendStep("Error")
     }

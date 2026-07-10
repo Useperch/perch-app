@@ -109,6 +109,25 @@ enum BrowserSubagentState: String {
     }
 }
 
+/// One entry in the tool-call trace a finished run reports: the tool the agent
+/// invoked and whether that call succeeded. Carried on `done`/`error` events so
+/// the app can log exactly what the agent did (older sidecars omit it → `nil`).
+struct SubagentToolCall {
+    let tool: String
+    let ok: Bool
+
+    /// Leniently decodes the sidecar's `toolCalls` payload
+    /// (`[{"tool": "browser", "ok": true}, …]` or null). Missing/malformed → `nil`;
+    /// individual malformed entries are dropped rather than failing the event.
+    static func list(from params: [String: Any]) -> [SubagentToolCall]? {
+        guard let rawCalls = params["toolCalls"] as? [[String: Any]] else { return nil }
+        return rawCalls.compactMap { rawCall in
+            guard let tool = rawCall["tool"] as? String else { return nil }
+            return SubagentToolCall(tool: tool, ok: rawCall["ok"] as? Bool ?? false)
+        }
+    }
+}
+
 /// A typed event decoded from a sidecar notification.
 enum BrowserSubagentEvent {
     case state(subagentId: String, state: BrowserSubagentState)
@@ -118,8 +137,8 @@ enum BrowserSubagentEvent {
     // The task needs Composio toolkits the user hasn't connected. The app shows the
     // connect popup(s), then answers with connectionComplete.
     case connectionRequired(subagentId: String, toolkitSlugs: [String])
-    case done(subagentId: String, handoffWindowReady: Bool, finalUrl: String?, resultSummary: String?, deliverableLabel: String?)
-    case error(subagentId: String, message: String)
+    case done(subagentId: String, handoffWindowReady: Bool, finalUrl: String?, resultSummary: String?, deliverableLabel: String?, toolCalls: [SubagentToolCall]?)
+    case error(subagentId: String, message: String, toolCalls: [SubagentToolCall]?)
     // The task needs a free-form answer from the user (ask_user). The app speaks the
     // question and ends the run without claiming completion.
     case needsInput(subagentId: String, question: String)
@@ -189,12 +208,17 @@ enum BrowserSubagentEvent {
                 handoffWindowReady: handoffWindowReady,
                 finalUrl: finalUrl,
                 resultSummary: resultSummary,
-                deliverableLabel: deliverableLabel
+                deliverableLabel: deliverableLabel,
+                toolCalls: SubagentToolCall.list(from: params)
             )
 
         case BrowserSubagentEventMethod.error:
             let message = params["message"] as? String ?? "unknown error"
-            return .error(subagentId: subagentId, message: message)
+            return .error(
+                subagentId: subagentId,
+                message: message,
+                toolCalls: SubagentToolCall.list(from: params)
+            )
 
         case BrowserSubagentEventMethod.needsInput:
             let question = params["question"] as? String ?? "What would you like me to do?"

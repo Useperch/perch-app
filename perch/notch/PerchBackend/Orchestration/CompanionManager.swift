@@ -1075,13 +1075,11 @@ final class CompanionManager: ObservableObject {
             openDeliverableInBrowserIfAvailable(for: finishedOrWorkingRun)
             announceBackgroundTaskCompletion(for: finishedOrWorkingRun)
         } else if newState == .error {
-            // A failed task must read as CLOSED in conversation history too, or
-            // the model keeps treating it as live and re-binds follow-ups to it.
-            recordBackgroundTaskClosure(
-                taskDescription: finishedOrWorkingRun.taskDescription,
-                didSucceed: false,
-                summary: "the agent hit an error and stopped"
-            )
+            // A failed run must be TOLD to the user (bubble + speech), not just
+            // logged — otherwise "on it!" is the last thing they ever hear about
+            // the task. Also closes it in conversation history and records it in
+            // the Agents tab, mirroring the success path.
+            announceBackgroundTaskFailure(for: finishedOrWorkingRun)
         } else if newState == .needsInput {
             // The run ended by asking the user something — speak the question (never an
             // "all done" wrap-up). The user answers on their next voice/typed turn.
@@ -1948,7 +1946,7 @@ final class CompanionManager: ObservableObject {
         // creates, so a concurrent later task never overwrites them.
         let runForBackgroundTask = activeRun
         PerchRunLog.append(runForBackgroundTask, .action, "handing task to browser subagent: \(task)")
-        Task { await browserSubagentManager.startTask(task, runDocument: runForBackgroundTask) }
+        startBackgroundTaskReportingFailure(task, runDocument: runForBackgroundTask)
 
         // History records the FULL task, not just the vague "on it!" — a later
         // elliptical turn must be able to see WHAT was started (and, via the
@@ -1988,7 +1986,7 @@ final class CompanionManager: ObservableObject {
         NotificationCenter.default.post(name: .perchRevealDashboard, object: nil)
         let runForDashboardTask = activeRun
         let task = Self.dashboardTaskString(for: spec)
-        Task { await browserSubagentManager.startTask(task, runDocument: runForDashboardTask) }
+        startBackgroundTaskReportingFailure(task, runDocument: runForDashboardTask)
 
         recordExchange(userTranscript: transcript, assistantResponse: spokenConfirmation)
         // Typed turns land the confirmation in the bubble; voice speaks it.
@@ -2009,7 +2007,38 @@ final class CompanionManager: ObservableObject {
     private func handleDashboardComposeSubmit(spec: String) async {
         PerchRunLog.append(activeRun, .action, "dashboard compose → sidecar: \(spec)")
         let task = Self.dashboardTaskString(for: spec)
-        await browserSubagentManager.startTask(task)
+        if await browserSubagentManager.startTask(task) == nil {
+            // The user is looking at the board waiting for their widget — a silent
+            // spawn failure reads as "nothing happened". Tell them.
+            recordBackgroundTaskClosure(
+                taskDescription: task, didSucceed: false, summary: "the agent could not start"
+            )
+            presentAndSpeakCompanionLine(
+                "sorry — i couldn't get the agent started on that. mind trying again?",
+                runDocument: nil
+            )
+        }
+    }
+
+    /// Fires a background agent task without blocking the caller, and — unlike the
+    /// old fire-and-forget — reports a spawn failure to the user. The confirmation
+    /// ("on it!") has already been spoken by the time this runs, so a nil spawn
+    /// (sidecar missing, launch denied, socket/RPC failure) must not end silently.
+    private func startBackgroundTaskReportingFailure(
+        _ task: String, runDocument: PerchRunLog.RunDocument?
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard await self.browserSubagentManager.startTask(task, runDocument: runDocument) == nil
+            else { return }
+            self.recordBackgroundTaskClosure(
+                taskDescription: task, didSucceed: false, summary: "the agent could not start"
+            )
+            self.presentAndSpeakCompanionLine(
+                "sorry — i couldn't get the agent started on that. mind trying again?",
+                runDocument: runDocument
+            )
+        }
     }
 
     /// Phrase a dashboard request so the sidecar planner routes it to the `dashboard`
@@ -2223,6 +2252,43 @@ final class CompanionManager: ObservableObject {
         )
 
         presentAndSpeakCompanionLine(completionMessage, runDocument: finishedRun.runDocument)
+    }
+
+    /// Called when one background agent reports it FAILED. Mirrors
+    /// `announceBackgroundTaskCompletion`: shows the bubble and (when Perch isn't
+    /// mid-conversation) speaks the failure aloud, records the run as failed in the
+    /// Agents tab, and closes the task in conversation history. The sidecar's error
+    /// strings are already first-person and user-facing ("I couldn't complete
+    /// that — …"), so they're spoken verbatim when present.
+    private func announceBackgroundTaskFailure(for failedRun: BrowserSubagentRun) {
+        let failureMessage: String
+        if let sidecarMessage = failedRun.errorMessage, !sidecarMessage.isEmpty {
+            failureMessage = sidecarMessage
+        } else {
+            let task = failedRun.taskDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+            failureMessage = task.isEmpty
+                ? "sorry — i hit a problem and couldn't finish that task."
+                : "sorry — i hit a problem and couldn't finish \(task)."
+        }
+        PerchRunLog.append(failedRun.runDocument, .error, "background task failed: \(failureMessage)")
+
+        // Remember this run so the notch panel's Agents tab shows the failure too.
+        agentRunHistoryStore.recordRun(
+            taskDescription: failedRun.taskDescription,
+            resultSummary: failureMessage,
+            finalUrl: failedRun.finalUrl,
+            didSucceed: false,
+            deliverableLabel: failedRun.deliverableLabel
+        )
+        // A failed task must read as CLOSED in conversation history too, or
+        // the model keeps treating it as live and re-binds follow-ups to it.
+        recordBackgroundTaskClosure(
+            taskDescription: failedRun.taskDescription,
+            didSucceed: false,
+            summary: failureMessage
+        )
+
+        presentAndSpeakCompanionLine(failureMessage, runDocument: failedRun.runDocument)
     }
 
     /// The run ended by asking the user a free-form question (the sidecar's ask_user).

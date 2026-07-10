@@ -309,9 +309,12 @@ final class BrowserSubagentManager: ObservableObject {
         guard recordingCoordinator.state == .recording else { return }
         recordingCoordinator.markSynthesizing()
         do {
+            // Skill synthesis holds this RPC open while the model drafts — give it
+            // far longer than the default request deadline before giving up.
             let result = try await ipcClient.sendRequest(
                 method: BrowserSubagentRequestMethod.recordStop,
-                params: [:]
+                params: [:],
+                timeoutSeconds: 300
             )
             recordingCoordinator.markSaved(
                 SavedChromeSkill(
@@ -341,9 +344,12 @@ final class BrowserSubagentManager: ObservableObject {
     /// (`{title, subtitle?, url?, timestamp?}`); the caller maps + ranks them.
     func sendDashboardFetch(provider: String, query: String, limit: Int) async throws -> [[String: Any]] {
         try await connectIfNeeded()
+        // Answered from live Exa/Composio reads — allow a slow provider without
+        // tripping the default request deadline.
         let result = try await ipcClient.sendRequest(
             method: BrowserSubagentRequestMethod.dashboardFetch,
-            params: ["provider": provider, "query": query, "limit": limit]
+            params: ["provider": provider, "query": query, "limit": limit],
+            timeoutSeconds: 90
         )
         return result["items"] as? [[String: Any]] ?? []
     }
@@ -356,13 +362,16 @@ final class BrowserSubagentManager: ObservableObject {
     ) async throws -> NotchAlert? {
         try await connectIfNeeded()
         let candidateDictionaries = candidates.map { $0.asDictionary() }
+        // Model-backed importance filter — allow a slow LLM call without tripping
+        // the default request deadline.
         let result = try await ipcClient.sendRequest(
             method: BrowserSubagentRequestMethod.notchAlertEvaluate,
             params: [
                 "candidates": candidateDictionaries,
                 "dismissedFingerprints": dismissedFingerprints,
                 "now": ISO8601DateFormatter().string(from: Date()),
-            ]
+            ],
+            timeoutSeconds: 90
         )
         guard let alertRaw = result["alert"] as? [String: Any] else { return nil }
         return NotchAlert.fromDictionary(alertRaw)
@@ -426,7 +435,7 @@ final class BrowserSubagentManager: ObservableObject {
         isConnected = false
         for activeRun in runs where activeRun.isWorking {
             PerchRunLog.append(activeRun.runDocument, .error, "sidecar connection lost (was working)")
-            activeRun.markErrored()
+            activeRun.markErrored(message: "the connection to the agent was lost before it could finish")
             activeRun.desktopTool.endClipboardRun()
             releaseDesktopActuationLockIfHeld(by: activeRun.id)
         }
@@ -473,7 +482,7 @@ final class BrowserSubagentManager: ObservableObject {
             }
             activeRun.setPendingConnectionRequest(toolkitSlugs)
 
-        case let .done(subagentId, handoffWindowReady, finalUrlString, resultSummary, deliverableLabel):
+        case let .done(subagentId, handoffWindowReady, finalUrlString, resultSummary, deliverableLabel, toolCalls):
             guard let activeRun = run(for: subagentId) else { return }
             let finalUrl = finalUrlString.flatMap { URL(string: $0) }
             activeRun.applyDone(
@@ -490,15 +499,17 @@ final class BrowserSubagentManager: ObservableObject {
                 activeRun.runDocument, .action,
                 "subagent done — handoffReady=\(handoffWindowReady) finalUrl=\(finalUrlString ?? "—") summary=\(resultSummary ?? "—")"
             )
+            appendToolTrace(toolCalls, to: activeRun.runDocument)
             // Inline any AppleScript the agent ran in its OWN process (the Python
             // "system" family via osascript) by reading this run's trace.
             PerchRunLog.appendAppleScriptFromSubagentTrace(activeRun.runDocument, subagentId: subagentId)
 
-        case let .error(subagentId, message):
+        case let .error(subagentId, message, toolCalls):
             guard let activeRun = run(for: subagentId) else { return }
             print("⚠️ Browser subagent error: \(message)")
             PerchRunLog.append(activeRun.runDocument, .error, "subagent error: \(message)")
-            activeRun.markErrored()
+            appendToolTrace(toolCalls, to: activeRun.runDocument)
+            activeRun.markErrored(message: message)
             activeRun.desktopTool.endClipboardRun()
             releaseDesktopActuationLockIfHeld(by: subagentId)
 
@@ -563,6 +574,17 @@ final class BrowserSubagentManager: ObservableObject {
             // them to the recording coordinator that the Agents-tab control observes.
             recordingCoordinator.handle(event)
         }
+    }
+
+    /// Logs the tool-call trace a finished run reported on its `done`/`error` event
+    /// ("agent tool trace: browser✓ app_api✗ done✓"), so the turn's trace doc records
+    /// exactly what the agent invoked. No-ops for older sidecars that omit the field.
+    private func appendToolTrace(_ toolCalls: [SubagentToolCall]?, to runDocument: PerchRunLog.RunDocument?) {
+        guard let toolCalls, !toolCalls.isEmpty else { return }
+        let trace = toolCalls
+            .map { "\($0.tool)\($0.ok ? "✓" : "✗")" }
+            .joined(separator: " ")
+        PerchRunLog.append(runDocument, .action, "agent tool trace: \(trace)")
     }
 
     /// The decided desktop action's type label (e.g. "type_text", "applescript").

@@ -15,6 +15,9 @@ actor BrowserSubagentIPCClient {
         case notConnected
         case disconnected
         case malformedResponse
+        // The sidecar accepted the connection but never answered this request —
+        // without a deadline a hung sidecar would strand the awaiting task forever.
+        case requestTimedOut
     }
 
     private var socketDescriptor: Int32 = -1
@@ -112,9 +115,16 @@ actor BrowserSubagentIPCClient {
 
     // MARK: - Requests
 
-    /// Sends a request and awaits its `result` dictionary.
+    /// Sends a request and awaits its `result` dictionary. Fails with
+    /// `requestTimedOut` if the sidecar doesn't answer within `timeoutSeconds` —
+    /// a sidecar that binds its socket but then hangs must not strand the caller
+    /// (and, transitively, the whole task) forever. The default comfortably covers
+    /// every RPC the app sends: even `spawn` returns at subagent registration, and
+    /// long-running work is reported via events, not the request's response.
     @discardableResult
-    func sendRequest(method: String, params: [String: Any]) async throws -> [String: Any] {
+    func sendRequest(
+        method: String, params: [String: Any], timeoutSeconds: TimeInterval = 30
+    ) async throws -> [String: Any] {
         guard socketDescriptor >= 0 else { throw IPCError.notConnected }
 
         let requestId = nextRequestId
@@ -128,6 +138,17 @@ actor BrowserSubagentIPCClient {
         ]
         let line = try Self.encodeLine(message)
 
+        // Arm the deadline before awaiting. Whoever removes the continuation from
+        // `pendingRequests` first (read loop, disconnect, or this deadline) resumes
+        // it exactly once — all three paths are actor-isolated and gate on
+        // `removeValue`, so a late deadline after a normal response is a no-op.
+        let timeoutTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.failPendingRequest(requestId, error: IPCError.requestTimedOut)
+        }
+        defer { timeoutTask.cancel() }
+
         return try await withCheckedThrowingContinuation { continuation in
             pendingRequests[requestId] = continuation
             do {
@@ -137,6 +158,13 @@ actor BrowserSubagentIPCClient {
                 continuation.resume(throwing: error)
             }
         }
+    }
+
+    /// Fails one in-flight request (used by the per-request deadline). A no-op if
+    /// the request already resolved — the read loop and `disconnect` remove
+    /// continuations through the same dictionary, so resume-once is guaranteed.
+    private func failPendingRequest(_ requestId: Int, error: Error) {
+        pendingRequests.removeValue(forKey: requestId)?.resume(throwing: error)
     }
 
     private func writeLine(_ data: Data) throws {

@@ -116,8 +116,9 @@ URL is committed). Two features are only in the official DMG:
 ## Uninstall / troubleshooting
 
 - **Uninstall:** quit Perch, then `rm -rf /Applications/Perch.app`. To also clear its data,
-  remove `~/Library/Containers/app.perch.notch/` (and any `~/Library/Application Scripts/` entry
-  for `app.perch.notch`).
+  remove `~/.perch-support/` (Perch keeps all its state there — logs, agent traces, your install
+  identity) and its preferences with `defaults delete app.perch.notch`. Perch is not sandboxed, so
+  there is no `~/Library/Containers/` entry to clean up.
 - **"Perch is damaged and can't be opened":** that's the quarantine flag — re-run
   `xattr -dr com.apple.quarantine /Applications/Perch.app`, then open it again.
 - **Won't launch / wrong architecture:** Perch requires **macOS 14.2+ on Apple Silicon**. It won't
