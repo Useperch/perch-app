@@ -10,8 +10,14 @@
 //  Python flow opens the OAuth URL in the user's real browser and, on success,
 //  rewrites the capability manifest. Swift detects completion purely by polling
 //  the manifest for the slug — no stdout parsing, no coupling to the long-lived
-//  sidecar. Output is captured to <repo>/support/connect.log so a launch/auth
+//  sidecar. Output is captured to <support>/connect.log so a launch/auth
 //  failure is diagnosable.
+//
+//  Sidecar directory resolution MUST match BrowserSubagentProcessSupervisor:
+//  Info.plist BrowserSubagentPath (dev) → repo checkout → bundled
+//  Contents/Resources/browser-subagent (release). Release builds strip the
+//  machine-specific plist path; without the bundle fallback, Yes / Settings +
+//  silently fail before the OAuth browser ever opens.
 //
 //  Native services (Word, Excel, Numbers): no OAuth — Perch already actuates
 //  them via AppleScript. "Connecting" is recorded by the coordinator
@@ -91,14 +97,8 @@ final class ServiceConnectManager: ServiceConnecting {
     // MARK: - Composio OAuth
 
     private func connectComposioToolkit(slug: String, onOutcome: @escaping (Bool) -> Void) {
-        guard let sidecarDirectory = AppBundleConfiguration.stringValue(forKey: Self.sidecarPathInfoKey) else {
-            print("⚠️ ServiceConnectManager: BrowserSubagentPath not configured — cannot connect")
-            onOutcome(false)
-            return
-        }
-        let runScriptPath = (sidecarDirectory as NSString).appendingPathComponent("run.sh")
-        guard FileManager.default.fileExists(atPath: runScriptPath) else {
-            print("⚠️ ServiceConnectManager: run.sh not found at \(runScriptPath)")
+        guard let sidecarDirectory = Self.resolveSidecarDirectory() else {
+            print("⚠️ ServiceConnectManager: no browser-subagent with run.sh found (plist/repo/bundle) — cannot connect")
             onOutcome(false)
             return
         }
@@ -114,6 +114,30 @@ final class ServiceConnectManager: ServiceConnecting {
         pollTask?.cancel()
         pollTask = Task { @MainActor [weak self] in
             await self?.pollForConnection(slug: slug, onOutcome: onOutcome)
+        }
+    }
+
+    /// Same candidate order as `BrowserSubagentProcessSupervisor.ensureRunning`:
+    /// explicit Info.plist path → sibling checkout → signed bundle Resources.
+    private static func resolveSidecarDirectory() -> String? {
+        var candidateSidecarDirectories: [String] = []
+        if let configuredSidecarDirectory = AppBundleConfiguration.stringValue(forKey: sidecarPathInfoKey) {
+            candidateSidecarDirectories.append(configuredSidecarDirectory)
+        }
+        if let repoRootURL = PerchSupportPaths.repoRootURL {
+            candidateSidecarDirectories.append(
+                repoRootURL.appendingPathComponent("browser-subagent", isDirectory: true).path
+            )
+        }
+        if let bundledResourceURL = Bundle.main.resourceURL {
+            candidateSidecarDirectories.append(
+                bundledResourceURL.appendingPathComponent("browser-subagent", isDirectory: true).path
+            )
+        }
+        return candidateSidecarDirectories.first { directory in
+            FileManager.default.fileExists(
+                atPath: (directory as NSString).appendingPathComponent("run.sh")
+            )
         }
     }
 
@@ -145,6 +169,14 @@ final class ServiceConnectManager: ServiceConnecting {
             environment["COMPOSIO_BASE_URL"] = "\(Self.workerBaseURL)/composio"
             environment["COMPOSIO_API_KEY"] = installToken
             environment["COMPOSIO_USER_ID"] = installId
+        }
+        // Manifest + support state must match the app's support dir, or the
+        // notch never sees a completed connection. When the connect helper runs
+        // from the read-only signed bundle, mutable venv/state must live outside
+        // Resources (same PERCH_SIDECAR_STATE_DIR rule as the long-lived sidecar).
+        environment["PERCH_SUPPORT_DIRECTORY"] = PerchSupportPaths.supportDirectoryURL.path
+        if sidecarDirectory.hasPrefix(Bundle.main.bundlePath) {
+            environment["PERCH_SIDECAR_STATE_DIR"] = PerchSupportPaths.directory("sidecar").path
         }
         process.environment = environment
 
